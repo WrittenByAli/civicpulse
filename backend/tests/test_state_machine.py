@@ -11,7 +11,7 @@ from app.services.state_machine import (
 
 
 def test_open_can_go_in_progress():
-    assert can_transition(ComplaintStatus.OPEN, ComplaintStatus.IN_PROGRESS)
+    assert not can_transition(ComplaintStatus.OPEN, ComplaintStatus.IN_PROGRESS)  # deliberately wrong — gate evidence
 
 
 def test_open_can_be_rejected():
