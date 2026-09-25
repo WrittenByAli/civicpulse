@@ -2,8 +2,10 @@ import asyncio
 import logging
 import signal
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
@@ -33,6 +35,14 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# Spec requires 400 (not FastAPI's default 422) for validation errors
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": exc.errors()},
+    )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -47,6 +57,8 @@ app.include_router(complaints.router)
 app.include_router(stats.router)
 app.include_router(meta.router)
 
+# Exposes /metrics with request count + request latency histogram (built-in)
+# Custom metrics (triage_latency, fallback_counter) live in app/metrics.py
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 

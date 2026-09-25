@@ -18,19 +18,16 @@ _PRIORITY_KEYWORDS: dict[str, list[str]] = {
 
 def _classify(text: str) -> tuple[str, str]:
     lower = text.lower()
-
     category = "other"
     for cat, keywords in _CATEGORY_KEYWORDS.items():
         if any(kw in lower for kw in keywords):
             category = cat
             break
-
     priority = "normal"
     for pri, keywords in _PRIORITY_KEYWORDS.items():
         if any(kw in lower for kw in keywords):
             priority = pri
             break
-
     return category, priority
 
 
@@ -42,17 +39,20 @@ class RuleBasedTriage:
         return "rules:fallback" if self._is_fallback else "rules"
 
     async def triage(self, text: str, location: str) -> TriageResult:
+        from app.metrics import triage_latency
+
         t0 = time.monotonic()
         category, priority = _classify(text)
         summary_text = text[:100].rstrip()
         if len(text) > 100:
             summary_text += "…"
-        ai_summary = summary_text[:140]
-        latency_ms = int((time.monotonic() - t0) * 1000)
+        latency_s = time.monotonic() - t0
+        triage_latency.labels(provider=self.name()).observe(latency_s)
         return TriageResult(
             category=category,
             priority=priority,
-            ai_summary=ai_summary,
+            ai_summary=summary_text[:140],
             triaged_by=self.name(),
-            latency_ms=latency_ms,
+            latency_ms=int(latency_s * 1000),
+            is_fallback=self._is_fallback,
         )

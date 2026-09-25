@@ -13,16 +13,20 @@ class SimulatedTriage:
         return "simulated"
 
     async def triage(self, text: str, location: str) -> TriageResult:
+        from app.metrics import triage_latency
+
         t0 = time.monotonic()
         digest = int(hashlib.sha256(f"{text}{location}".encode()).hexdigest(), 16)
         category = _CATEGORIES[digest % len(_CATEGORIES)]
         priority = _PRIORITIES[(digest >> 8) % len(_PRIORITIES)]
         summary = text[:97] + "…" if len(text) > 100 else text
-        latency_ms = int((time.monotonic() - t0) * 1000)
+        latency_s = time.monotonic() - t0
+        triage_latency.labels(provider="simulated").observe(latency_s)
         return TriageResult(
             category=category,
             priority=priority,
             ai_summary=summary[:140],
             triaged_by="simulated",
-            latency_ms=latency_ms,
+            latency_ms=int(latency_s * 1000),
+            is_fallback=False,
         )

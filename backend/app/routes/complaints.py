@@ -80,5 +80,5 @@ async def update_status(
     except LookupError:
         raise HTTPException(status_code=404, detail="Complaint not found")
     except InvalidTransitionError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=409, detail=str(exc))
     return ComplaintResponse.model_validate(complaint)

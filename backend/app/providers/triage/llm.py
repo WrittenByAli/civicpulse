@@ -5,6 +5,7 @@ import time
 
 import httpx
 
+from app.metrics import fallback_counter, triage_latency
 from app.providers.triage.base import TriageResult
 from app.providers.triage.rules import RuleBasedTriage
 
@@ -39,7 +40,7 @@ class LLMTriage:
     async def triage(self, text: str, location: str) -> TriageResult:
         t0 = time.monotonic()
         prompt = _PROMPT_TEMPLATE.format(
-            # Treat user text as untrusted data — it is delimited by XML tags
+            # Complaint text is treated as untrusted data — delimited by XML tags
             text=text,
             location=location,
         )
@@ -62,14 +63,23 @@ class LLMTriage:
                 body = resp.json()
                 raw = body["choices"][0]["message"]["content"]
                 parsed = json.loads(raw)
-                latency_ms = int((time.monotonic() - t0) * 1000)
+                latency_s = time.monotonic() - t0
+                triage_latency.labels(provider="llm:groq").observe(latency_s)
                 return TriageResult(
                     category=parsed.get("category", "other"),
                     priority=parsed.get("priority", "normal"),
                     ai_summary=str(parsed.get("summary", ""))[:140],
                     triaged_by="llm:groq",
-                    latency_ms=latency_ms,
+                    latency_ms=int(latency_s * 1000),
+                    is_fallback=False,
                 )
         except Exception as exc:
-            logger.warning("Groq triage failed, falling back to rules: %s", exc)
-            return await _FALLBACK.triage(text, location)
+            # Spec: one WARNING per fallback with provider and error class
+            logger.warning(
+                "Triage fallback triggered",
+                extra={"provider": "llm:groq", "error_class": type(exc).__name__, "error": str(exc)},
+            )
+            fallback_counter.labels(original_provider="llm:groq").inc()
+            result = await _FALLBACK.triage(text, location)
+            result.is_fallback = True
+            return result

@@ -17,18 +17,18 @@ async def test_create_complaint_returns_201(client):
 
 
 @pytest.mark.asyncio
-async def test_create_complaint_missing_text_returns_422(client):
+async def test_create_complaint_missing_text_returns_400(client):
     resp = await client.post("/api/complaints", json={"location": "Lahore"})
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_create_complaint_text_too_short_returns_422(client):
+async def test_create_complaint_text_too_short_returns_400(client):
     resp = await client.post(
         "/api/complaints",
         json={"text": "short", "location": "Lahore"},
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -86,9 +86,9 @@ async def test_invalid_status_transition_returns_422(client):
         json={"text": "Pothole on Jail Road causing accidents every day", "location": "Jail Road, Lahore"},
     )
     cid = create_resp.json()["id"]
-    # open → resolved is not allowed
+    # open → resolved is not allowed — must return 409 per spec
     patch_resp = await client.patch(
         f"/api/complaints/{cid}/status",
         json={"status": "resolved"},
     )
-    assert patch_resp.status_code == 422
+    assert patch_resp.status_code == 409
