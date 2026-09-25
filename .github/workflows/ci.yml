@@ -258,19 +258,17 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"text":"Water pipe burst on Main Street causing flooding","location":"Lahore"}')
           echo "$RESP"
-          python3 - <<'PY'
-          import sys, json, os
-          d = json.loads("""$RESP""")
-          assert d["category"] in ["water","electricity","sanitation","roads","streetlights","other"]
-          print("category ok:", d["category"])
-          with open(os.environ["GITHUB_ENV"], "a") as f:
-              f.write(f"COMPLAINT_ID={d['id']}\n")
-          PY
+          CATEGORY=$(echo "$RESP" | jq -r '.category')
+          echo "category: $CATEGORY"
+          echo "$CATEGORY" | grep -E '^(water|electricity|sanitation|roads|streetlights|other)$'
+          COMPLAINT_ID=$(echo "$RESP" | jq -r '.id')
+          echo "COMPLAINT_ID=$COMPLAINT_ID" >> "$GITHUB_ENV"
 
       - name: GET complaint back
         run: |
-          curl -sf http://localhost:8000/api/complaints/$COMPLAINT_ID \
-            | python3 -c "import sys,json,os; d=json.load(sys.stdin); assert d['id']==os.environ['COMPLAINT_ID']"
+          GOT_ID=$(curl -sf "http://localhost:8000/api/complaints/$COMPLAINT_ID" | jq -r '.id')
+          [ "$GOT_ID" = "$COMPLAINT_ID" ] || { echo "ID mismatch: $GOT_ID"; exit 1; }
+          echo "GET ok: $GOT_ID"
 
       - name: X-Cache MISS then HIT
         run: |
