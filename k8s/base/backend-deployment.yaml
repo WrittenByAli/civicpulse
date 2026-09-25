@@ -24,7 +24,8 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: backend
-          image: civicpulse/backend:latest
+          image: civicpulse-backend:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8000
               name: http
