@@ -1,5 +1,4 @@
 """All SQL lives here — zero query logic in routes or services."""
-import math
 import uuid
 from typing import Any
 

@@ -5,7 +5,8 @@ from functools import lru_cache
 from redis.asyncio import Redis
 
 from app.config import settings
-from app.providers.triage import TriageProvider, get_triage_provider as _factory
+from app.providers.triage import TriageProvider
+from app.providers.triage import get_triage_provider as _factory
 
 
 @lru_cache(maxsize=1)

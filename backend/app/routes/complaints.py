@@ -1,7 +1,7 @@
-import uuid
 import logging
+import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,7 +9,12 @@ from app.database import get_db
 from app.dependencies import get_redis, get_triage_provider
 from app.models import ComplaintCategory, ComplaintPriority, ComplaintStatus
 from app.providers.triage import TriageProvider
-from app.schemas import ComplaintCreate, ComplaintListResponse, ComplaintResponse, StatusUpdate
+from app.schemas import (
+    ComplaintCreate,
+    ComplaintListResponse,
+    ComplaintResponse,
+    StatusUpdate,
+)
 from app.services import complaint_service
 from app.services.state_machine import InvalidTransitionError
 

@@ -36,3 +36,24 @@ testpaths = ["tests"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "BLE"]
+ignore = [
+    "B008",  # Depends(...) in argument defaults is FastAPI's required DI pattern
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Fallback triage and readiness probes must catch any failure to degrade safely
+"app/providers/triage/llm.py" = ["BLE001"]
+"app/providers/triage/ollama.py" = ["BLE001"]
+"app/routes/health.py" = ["BLE001"]
+# Session context manager: rollback on any error, then re-raise
+"app/database.py" = ["BLE001"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
