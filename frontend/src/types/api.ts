@@ -67,3 +67,28 @@ export interface ProviderMetaResponse {
 export interface ApiError {
   detail: string | { msg: string; loc: string[] }[]
 }
+
+export type UserRole = 'citizen' | 'operator'
+
+export interface User {
+  id: string
+  email: string
+  role: UserRole
+  created_at: string
+}
+
+export interface TokenResponse {
+  access_token: string
+  token_type: string
+}
+
+export interface SignupRequest {
+  email: string
+  password: string
+  role?: UserRole
+}
+
+export interface LoginRequest {
+  email: string
+  password: string
+}

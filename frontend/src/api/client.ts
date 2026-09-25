@@ -6,8 +6,12 @@ import type {
   ComplaintCreate,
   ComplaintListResponse,
   ComplaintResponse,
+  LoginRequest,
   ProviderMetaResponse,
+  SignupRequest,
   StatusUpdate,
+  TokenResponse,
+  User,
 } from '../types/api'
 
 export class ApiError extends Error {
@@ -20,12 +24,28 @@ export class ApiError extends Error {
   }
 }
 
+const TOKEN_KEY = 'civicpulse_token'
+
+export function getStoredToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setStoredToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function clearStoredToken(): void {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
 async function request<T>(
   path: string,
   init?: RequestInit,
 ): Promise<{ data: T; headers: Headers }> {
+  const token = getStoredToken()
+  const authHeader = token ? { Authorization: `Bearer ${token}` } : {}
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: { 'Content-Type': 'application/json', ...authHeader, ...init?.headers },
     ...init,
   })
   if (!res.ok) {
@@ -107,5 +127,26 @@ export async function getStats(): Promise<StatsResult> {
 
 export async function getProviderMeta(): Promise<ProviderMetaResponse> {
   const { data } = await request<ProviderMetaResponse>('/api/meta/providers')
+  return data
+}
+
+export async function signup(payload: SignupRequest): Promise<TokenResponse> {
+  const { data } = await request<TokenResponse>('/api/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return data
+}
+
+export async function login(payload: LoginRequest): Promise<TokenResponse> {
+  const { data } = await request<TokenResponse>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return data
+}
+
+export async function getMe(): Promise<User> {
+  const { data } = await request<User>('/api/auth/me')
   return data
 }

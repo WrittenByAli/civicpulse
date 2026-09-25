@@ -6,8 +6,8 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_redis, get_triage_provider
-from app.models import ComplaintCategory, ComplaintPriority, ComplaintStatus
+from app.dependencies import get_optional_user, get_redis, get_triage_provider, require_operator
+from app.models import Complaint, ComplaintCategory, ComplaintPriority, ComplaintStatus, User, UserRole
 from app.providers.triage import TriageProvider
 from app.schemas import (
     ComplaintCreate,
@@ -28,7 +28,12 @@ async def submit_complaint(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
     provider: TriageProvider = Depends(get_triage_provider),
+    current_user: User | None = Depends(get_optional_user),
 ) -> ComplaintResponse:
+    # Citizens must be authenticated; operators may submit optionally
+    if current_user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    owner_id = current_user.id if current_user.role == UserRole.CITIZEN.value else current_user.id
     complaint = await complaint_service.create_complaint(
         db,
         redis,
@@ -36,6 +41,7 @@ async def submit_complaint(
         text=payload.text,
         location=payload.location,
         reporter_contact=payload.reporter_contact,
+        owner_id=owner_id,
     )
     return ComplaintResponse.model_validate(complaint)
 
@@ -44,10 +50,16 @@ async def submit_complaint(
 async def get_complaint(
     complaint_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ) -> ComplaintResponse:
+    if current_user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     complaint = await complaint_service.get_complaint(db, complaint_id)
     if complaint is None:
         raise HTTPException(status_code=404, detail="Complaint not found")
+    # Citizens may only view their own complaints
+    if current_user.role == UserRole.CITIZEN.value and complaint.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     return ComplaintResponse.model_validate(complaint)
 
 
@@ -59,11 +71,18 @@ async def list_complaints(
     category: ComplaintCategory | None = None,
     priority: ComplaintPriority | None = None,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ) -> ComplaintListResponse:
+    if current_user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     if page < 1:
         raise HTTPException(status_code=422, detail="page must be >= 1")
     if per_page < 1 or per_page > 100:
         raise HTTPException(status_code=422, detail="per_page must be 1-100")
+
+    # Citizens see only their own; operators see all
+    owner_id = current_user.id if current_user.role == UserRole.CITIZEN.value else None
+
     return await complaint_service.list_complaints(
         db,
         page=page,
@@ -71,6 +90,7 @@ async def list_complaints(
         status=status.value if status else None,
         category=category.value if category else None,
         priority=priority.value if priority else None,
+        owner_id=owner_id,
     )
 
 
@@ -79,15 +99,12 @@ async def update_status(
     complaint_id: uuid.UUID,
     payload: StatusUpdate,
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_operator),  # Operators only
 ) -> ComplaintResponse:
     try:
         complaint = await complaint_service.update_status(db, complaint_id, payload.status)
     except LookupError:
-        raise HTTPException(
-            status_code=404, detail="Complaint not found",
-        ) from None
+        raise HTTPException(status_code=404, detail="Complaint not found") from None
     except InvalidTransitionError as exc:
-        raise HTTPException(
-            status_code=409, detail=str(exc),
-        ) from exc
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return ComplaintResponse.model_validate(complaint)

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ApiError, listComplaints, updateStatus } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 import type {
   ComplaintCategory,
   ComplaintPriority,
@@ -68,10 +69,12 @@ function ComplaintRow({
   complaint,
   onStatusChange,
   transitionError,
+  canChangeStatus,
 }: {
   complaint: ComplaintResponse
   onStatusChange: (id: string, status: ComplaintStatus) => void
   transitionError: string | undefined
+  canChangeStatus: boolean
 }) {
   const next = NEXT_STATUSES[complaint.status]
 
@@ -125,8 +128,8 @@ function ComplaintRow({
           )}
         </div>
 
-        {/* Status transition */}
-        {next.length > 0 && (
+        {/* Status transition — operators only */}
+        {canChangeStatus && next.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.04] pt-3">
             <span className="text-xs text-zinc-600">Advance to</span>
             {next.map((s) => (
@@ -163,6 +166,8 @@ function ComplaintRow({
 }
 
 export function DashboardPage() {
+  const { user } = useAuth()
+  const isOperator = user?.role === 'operator'
   const [items, setItems] = useState<ComplaintResponse[]>([])
   const [total, setTotal] = useState(0)
   const [pages, setPages] = useState(1)
@@ -289,6 +294,7 @@ export function DashboardPage() {
               complaint={c}
               onStatusChange={handleStatusChange}
               transitionError={transitionErrors[c.id]}
+              canChangeStatus={isOperator}
             />
           ))}
         </div>

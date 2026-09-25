@@ -34,6 +34,7 @@ async def create_complaint(
     text: str,
     location: str,
     reporter_contact: str | None,
+    owner_id: uuid.UUID | None = None,
 ) -> Complaint:
     cache_key = _triage_cache_key(text, location)
     cached_raw = await redis.get(cache_key)
@@ -56,6 +57,7 @@ async def create_complaint(
             ai_summary=ai_summary,
             triaged_by=triaged_by,
             triage_latency_ms=triage_latency_ms,
+            owner_id=owner_id,
         )
         return complaint
     else:
@@ -100,6 +102,7 @@ async def create_complaint(
         ai_summary=ai_summary,
         triaged_by=triaged_by,
         triage_latency_ms=triage_latency_ms,
+        owner_id=owner_id,
     )
     return complaint
 
@@ -116,9 +119,11 @@ async def list_complaints(
     status: str | None = None,
     category: str | None = None,
     priority: str | None = None,
+    owner_id: uuid.UUID | None = None,
 ) -> ComplaintListResponse:
     items, total = await complaint_repo.list_complaints(
-        db, page=page, per_page=per_page, status=status, category=category, priority=priority
+        db, page=page, per_page=per_page, status=status, category=category,
+        priority=priority, owner_id=owner_id,
     )
     pages = math.ceil(total / per_page) if total else 0
     return ComplaintListResponse(
