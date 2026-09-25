@@ -11,6 +11,26 @@ permissions:
   contents: read
 
 jobs:
+  # ── 0. Detect optional components ────────────────────────────────────────
+  detect:
+    name: Detect optional components
+    runs-on: ubuntu-latest
+    outputs:
+      has_frontend: ${{ steps.probe.outputs.has_frontend }}
+      has_k8s: ${{ steps.probe.outputs.has_k8s }}
+      has_compose: ${{ steps.probe.outputs.has_compose }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: probe
+        shell: bash
+        run: |
+          [ -f frontend/package.json ]                    && hf=true || hf=false
+          [ -f k8s/overlays/prod/kustomization.yaml ]    && hk=true || hk=false
+          [ -f compose.yaml ]                             && hc=true || hc=false
+          echo "has_frontend=$hf"  >> "$GITHUB_OUTPUT"
+          echo "has_k8s=$hk"       >> "$GITHUB_OUTPUT"
+          echo "has_compose=$hc"   >> "$GITHUB_OUTPUT"
+
   # ── 1. Lint & type-check ─────────────────────────────────────────────────
   lint-and-type:
     name: Lint & type-check
@@ -93,9 +113,9 @@ jobs:
   # ── 3. Frontend tests ─────────────────────────────────────────────────────
   test-frontend:
     name: Frontend tests (≥ 5 Vitest tests)
-    needs: lint-and-type
+    needs: [lint-and-type, detect]
     runs-on: ubuntu-latest
-    if: hashFiles('frontend/package.json') != ''
+    if: needs.detect.outputs.has_frontend == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -204,8 +224,8 @@ jobs:
   # ── 6. Validate K8s manifests ─────────────────────────────────────────────
   manifests:
     name: Validate K8s manifests (kustomize | kubeconform)
-    needs: build
-    if: hashFiles('k8s/overlays/prod/kustomization.yaml') != ''
+    needs: [build, detect]
+    if: needs.detect.outputs.has_k8s == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -224,12 +244,12 @@ jobs:
   # ── 7. Integration test ───────────────────────────────────────────────────
   integration:
     name: Integration test
-    needs: [scan, manifests]
+    needs: [scan, manifests, detect]
     if: |
       always() &&
       needs.scan.result == 'success' &&
       (needs.manifests.result == 'success' || needs.manifests.result == 'skipped') &&
-      hashFiles('compose.yaml') != ''
+      needs.detect.outputs.has_compose == 'true'
     runs-on: ubuntu-latest
     env:
       TRIAGE_PROVIDER: simulated
