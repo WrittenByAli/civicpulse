@@ -35,19 +35,30 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         client_ip = request.client.host if request.client else "unknown"
         redis_url = settings.REDIS_URL
-        redis: Redis = Redis.from_url(redis_url, decode_responses=True)
         key = f"rate:{client_ip}"
         try:
-            count = await redis.incr(key)
-            if count == 1:
-                await redis.expire(key, settings.RATE_LIMIT_WINDOW_SECONDS)
-            if count > settings.RATE_LIMIT_REQUESTS:
-                return JSONResponse(
-                    status_code=429,
-                    content={"detail": "Rate limit exceeded. Try again later."},
-                    headers={"Retry-After": str(settings.RATE_LIMIT_WINDOW_SECONDS)},
-                )
-        finally:
-            await redis.aclose()
+            redis = Redis.from_url(redis_url, decode_responses=True)
+            try:
+                count = await redis.incr(key)
+                if count == 1:
+                    await redis.expire(
+                        key, settings.RATE_LIMIT_WINDOW_SECONDS,
+                    )
+                if count > settings.RATE_LIMIT_REQUESTS:
+                    return JSONResponse(
+                        status_code=429,
+                        content={
+                            "detail": "Rate limit exceeded. Try again later.",
+                        },
+                        headers={
+                            "Retry-After": str(
+                                settings.RATE_LIMIT_WINDOW_SECONDS,
+                            ),
+                        },
+                    )
+            finally:
+                await redis.aclose()
+        except Exception:  # noqa: BLE001
+            logger.debug("Rate limiter skipped — Redis unavailable")
 
         return await call_next(request)
