@@ -24,11 +24,13 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         this.props.fallback ?? (
-          <div style={{ padding: '2rem', color: '#b91c1c' }}>
-            <strong>Something went wrong.</strong>
-            <pre style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
-              {this.state.error.message}
-            </pre>
+          <div className="mx-auto max-w-md py-16 text-center">
+            <div className="glass-card rounded-xl p-6">
+              <p className="text-sm font-medium text-red-400">Something went wrong</p>
+              <pre className="mt-3 overflow-x-auto text-left font-mono text-xs text-zinc-500">
+                {this.state.error.message}
+              </pre>
+            </div>
           </div>
         )
       )

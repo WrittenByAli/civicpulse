@@ -49,7 +49,7 @@ services:
     build:
       context: backend
     command: >
-      sh -c "alembic upgrade head && python /scripts/seed.py"
+      sh -c "alembic upgrade head && [ -f /scripts/seed.py ] && python /scripts/seed.py || true"
     environment:
       DATABASE_URL: postgresql+asyncpg://civicpulse:civicpulse@postgres:5432/civicpulse
       REDIS_URL: redis://redis:6379/0

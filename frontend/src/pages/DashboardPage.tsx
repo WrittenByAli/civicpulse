@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { ApiError, listComplaints, updateStatus } from '../api/client'
-import type { ComplaintCategory, ComplaintPriority, ComplaintResponse, ComplaintStatus } from '../types/api'
+import type {
+  ComplaintCategory,
+  ComplaintPriority,
+  ComplaintResponse,
+  ComplaintStatus,
+} from '../types/api'
 
 const STATUSES: ComplaintStatus[] = ['open', 'in_progress', 'resolved', 'rejected']
 const CATEGORIES: ComplaintCategory[] = [
@@ -8,13 +14,152 @@ const CATEGORIES: ComplaintCategory[] = [
 ]
 const PRIORITIES: ComplaintPriority[] = ['high', 'normal', 'low']
 
-// Valid transitions — display only reachable targets in the dropdown.
-// The backend is the source of truth; this list is for UX only, not enforcement.
 const NEXT_STATUSES: Record<ComplaintStatus, ComplaintStatus[]> = {
   open: ['in_progress', 'rejected'],
   in_progress: ['resolved', 'rejected'],
   resolved: [],
   rejected: [],
+}
+
+const STATUS_DOT: Record<ComplaintStatus, string> = {
+  open: 'bg-blue-400',
+  in_progress: 'bg-amber-400',
+  resolved: 'bg-emerald-400',
+  rejected: 'bg-red-400',
+}
+
+const PRIORITY_BADGE: Record<string, string> = {
+  high: 'border-red-500/30 bg-red-500/10 text-red-400',
+  normal: 'border-amber-500/30 bg-amber-500/10 text-amber-400',
+  low: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+}
+
+function FilterSelect({
+  value,
+  onChange,
+  placeholder,
+  options,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder: string
+  options: string[]
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2
+                 text-sm text-zinc-300 transition-colors
+                 hover:border-white/[0.12] focus:border-blue-500/50 focus:outline-none
+                 focus:ring-1 focus:ring-blue-500/30"
+    >
+      <option value="">{placeholder}</option>
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o.replace('_', ' ')}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+function ComplaintRow({
+  complaint,
+  onStatusChange,
+  transitionError,
+}: {
+  complaint: ComplaintResponse
+  onStatusChange: (id: string, status: ComplaintStatus) => void
+  transitionError: string | undefined
+}) {
+  const next = NEXT_STATUSES[complaint.status]
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-card rounded-xl p-4 transition-shadow hover:shadow-card-hover"
+    >
+      <div className="flex flex-col gap-3">
+        {/* Top row: badges */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-xs text-zinc-500">
+            {complaint.id.slice(0, 8)}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md border
+                           border-white/[0.08] bg-white/[0.04] px-2 py-0.5
+                           text-xs font-medium text-zinc-300">
+            {complaint.category}
+          </span>
+          <span className={`inline-flex items-center rounded-md border px-2 py-0.5
+                            text-xs font-medium ${PRIORITY_BADGE[complaint.priority] ?? ''}`}>
+            {complaint.priority}
+          </span>
+          <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-zinc-400">
+            <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[complaint.status]}`} />
+            {complaint.status.replace('_', ' ')}
+          </span>
+        </div>
+
+        {/* Body */}
+        <p className="text-sm leading-relaxed text-zinc-300">
+          {complaint.text.length > 200
+            ? complaint.text.slice(0, 200) + '...'
+            : complaint.text}
+        </p>
+
+        {/* Meta row */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+          <span className="inline-flex items-center gap-1">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2" className="text-zinc-600">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            {complaint.location}
+          </span>
+          {complaint.ai_summary && (
+            <span className="text-zinc-600">{complaint.ai_summary}</span>
+          )}
+        </div>
+
+        {/* Status transition */}
+        {next.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.04] pt-3">
+            <span className="text-xs text-zinc-600">Advance to</span>
+            {next.map((s) => (
+              <button
+                key={s}
+                onClick={() => onStatusChange(complaint.id, s)}
+                className="btn-ghost text-xs"
+              >
+                {s.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 409 error */}
+        <AnimatePresence>
+          {transitionError && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2
+                              text-xs text-red-400">
+                {transitionError}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  )
 }
 
 export function DashboardPage() {
@@ -63,99 +208,119 @@ export function DashboardPage() {
     }
   }
 
-  function resetFilters() {
-    setFilterStatus('')
-    setFilterCategory('')
-    setFilterPriority('')
-    setPage(1)
-  }
-
   return (
-    <div className="page">
-      <h1>Complaints Dashboard</h1>
-      <p className="subtitle">{total} complaint{total !== 1 ? 's' : ''} found</p>
-
-      <div className="card filter-bar">
-        <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1) }}>
-          <option value="">All statuses</option>
-          {STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-        </select>
-        <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); setPage(1) }}>
-          <option value="">All categories</option>
-          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select value={filterPriority} onChange={(e) => { setFilterPriority(e.target.value); setPage(1) }}>
-          <option value="">All priorities</option>
-          {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <button onClick={resetFilters} className="btn-secondary">Reset</button>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
+            Operations Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            {total} complaint{total !== 1 ? 's' : ''} found
+          </p>
+        </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {/* Filters */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <FilterSelect
+          value={filterStatus}
+          onChange={(v) => { setFilterStatus(v); setPage(1) }}
+          placeholder="All statuses"
+          options={STATUSES}
+        />
+        <FilterSelect
+          value={filterCategory}
+          onChange={(v) => { setFilterCategory(v); setPage(1) }}
+          placeholder="All categories"
+          options={CATEGORIES}
+        />
+        <FilterSelect
+          value={filterPriority}
+          onChange={(v) => { setFilterPriority(v); setPage(1) }}
+          placeholder="All priorities"
+          options={PRIORITIES}
+        />
+        {(filterStatus || filterCategory || filterPriority) && (
+          <button
+            onClick={() => { setFilterStatus(''); setFilterCategory(''); setFilterPriority(''); setPage(1) }}
+            className="btn-ghost text-xs"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
 
+      {/* Global error */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3
+                       text-sm text-red-400"
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Content */}
       {loading ? (
-        <div className="loading">Loading…</div>
+        <div className="flex items-center justify-center py-16">
+          <div className="h-6 w-6 animate-spin rounded-full border-2
+                          border-zinc-700 border-t-zinc-300" />
+        </div>
       ) : items.length === 0 ? (
-        <div className="empty-state">No complaints match the current filters.</div>
+        <div className="glass-card flex flex-col items-center gap-3 rounded-xl py-16">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth="1.5" className="text-zinc-600">
+            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <p className="text-sm text-zinc-500">No complaints match the current filters.</p>
+        </div>
       ) : (
-        <div className="complaint-list">
+        <div className="space-y-3">
           {items.map((c) => (
-            <div key={c.id} className="card complaint-card">
-              <div className="complaint-header">
-                <span className="mono complaint-id">{c.id.slice(0, 8)}…</span>
-                <span className={`badge badge-category badge-${c.category}`}>{c.category}</span>
-                <span className={`badge badge-priority badge-${c.priority}`}>{c.priority}</span>
-                <span className={`badge badge-status badge-status-${c.status}`}>
-                  {c.status.replace('_', ' ')}
-                </span>
-              </div>
-
-              <p className="complaint-text">{c.text.slice(0, 200)}{c.text.length > 200 ? '…' : ''}</p>
-              <p className="complaint-meta">
-                📍 {c.location}
-                {c.ai_summary && <> · {c.ai_summary}</>}
-              </p>
-
-              {NEXT_STATUSES[c.status].length > 0 && (
-                <div className="status-controls">
-                  <span>Advance to:</span>
-                  {NEXT_STATUSES[c.status].map((next) => (
-                    <button
-                      key={next}
-                      onClick={() => void handleStatusChange(c.id, next)}
-                      className="btn-secondary btn-small"
-                    >
-                      {next.replace('_', ' ')}
-                    </button>
-                  ))}
-                  {transitionErrors[c.id] && (
-                    <span className="inline-error" data-testid={`transition-error-${c.id}`}>
-                      {transitionErrors[c.id]}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
+            <ComplaintRow
+              key={c.id}
+              complaint={c}
+              onStatusChange={handleStatusChange}
+              transitionError={transitionErrors[c.id]}
+            />
           ))}
         </div>
       )}
 
+      {/* Pagination */}
       {pages > 1 && (
-        <div className="pagination">
+        <div className="flex items-center justify-center gap-3">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="btn-secondary"
+            className="btn-ghost"
           >
-            ← Prev
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+            Previous
           </button>
-          <span>Page {page} of {pages}</span>
+          <span className="text-xs tabular-nums text-zinc-500">
+            {page} / {pages}
+          </span>
           <button
             onClick={() => setPage((p) => Math.min(pages, p + 1))}
             disabled={page >= pages}
-            className="btn-secondary"
+            className="btn-ghost"
           >
-            Next →
+            Next
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
           </button>
         </div>
       )}
