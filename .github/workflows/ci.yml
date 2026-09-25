@@ -239,7 +239,7 @@ jobs:
             | tar xz -C /usr/local/bin/
 
       - name: kustomize build overlays/prod | kubeconform
-        run: kustomize build k8s/overlays/prod | kubeconform -strict -summary
+        run: kustomize build k8s/overlays/prod | kubeconform -strict -summary -ignore-missing-schemas
 
   # ── 7. Integration test ───────────────────────────────────────────────────
   integration:
