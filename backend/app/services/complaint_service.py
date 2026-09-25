@@ -142,7 +142,10 @@ async def update_status(
     current = ComplaintStatus(complaint.status)
     assert_transition(current, new_status)
 
-    updated = await complaint_repo.update_complaint_status(db, complaint_id, new_status.value)
+    updated = await complaint_repo.update_complaint_status(
+        db, complaint_id, new_status.value,
+    )
+    assert updated is not None
     return updated
 
 
