@@ -9,13 +9,14 @@ permissions:
   contents: read
 
 jobs:
+  # ── 1. Full test suite on the merged result ───────────────────────────────
   test:
     name: Full test suite
     runs-on: ubuntu-latest
     env:
       TRIAGE_PROVIDER: simulated
-      DATABASE_URL: sqlite+aiosqlite:///:memory:
-      REDIS_URL: redis://localhost:6379/15
+      DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+      REDIS_URL: "redis://localhost:6379/15"
     steps:
       - uses: actions/checkout@v4
 
@@ -26,7 +27,10 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
 
       - name: Install deps
-        run: pip install -e ".[dev]"
+        run: |
+          pip install --upgrade pip
+          pip install hatchling
+          pip install -e ".[dev]"
         working-directory: backend
 
       - name: pytest with coverage
@@ -40,6 +44,7 @@ jobs:
           npm run test -- --run
         working-directory: frontend
 
+  # ── 2. Build & push to GHCR ───────────────────────────────────────────────
   build-push:
     name: Build & push to GHCR
     needs: test
@@ -99,14 +104,13 @@ jobs:
           path: sbom-backend.spdx.json
           retention-days: 30
 
+  # ── 3. Deploy to kind cluster ─────────────────────────────────────────────
   deploy-k8s:
     name: Deploy to kind cluster & smoke test
     needs: build-push
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      IMAGE_TAG: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
 
