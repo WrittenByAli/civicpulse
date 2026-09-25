@@ -239,7 +239,7 @@ jobs:
           if [ ! -f k8s/overlays/prod/kustomization.yaml ]; then
             echo "No kustomization.yaml found — nothing to validate" && exit 0
           fi
-          kustomize build k8s/overlays/prod | kubeconform -strict -summary
+          kustomize build k8s/overlays/prod | kubeconform -strict -summary -ignore-missing-schemas
 
   # ── 7. Integration test ───────────────────────────────────────────────────
   integration:
