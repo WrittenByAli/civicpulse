@@ -83,7 +83,11 @@ async def update_status(
     try:
         complaint = await complaint_service.update_status(db, complaint_id, payload.status)
     except LookupError:
-        raise HTTPException(status_code=404, detail="Complaint not found")
+        raise HTTPException(
+            status_code=404, detail="Complaint not found",
+        ) from None
     except InvalidTransitionError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+        raise HTTPException(
+            status_code=409, detail=str(exc),
+        ) from exc
     return ComplaintResponse.model_validate(complaint)

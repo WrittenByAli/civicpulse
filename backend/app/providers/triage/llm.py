@@ -77,7 +77,11 @@ class LLMTriage:
             # Spec: one WARNING per fallback with provider and error class
             logger.warning(
                 "Triage fallback triggered",
-                extra={"provider": "llm:groq", "error_class": type(exc).__name__, "error": str(exc)},
+                extra={
+                    "provider": "llm:groq",
+                    "error_class": type(exc).__name__,
+                    "error": str(exc),
+                },
             )
             fallback_counter.labels(original_provider="llm:groq").inc()
             result = await _FALLBACK.triage(text, location)

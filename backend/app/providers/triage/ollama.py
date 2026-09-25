@@ -20,7 +20,9 @@ You are a municipal complaint classifier. Classify the following complaint.
 <location>{location}</location>
 
 Respond with JSON only, no explanation. Schema:
-{{"category":"water"|"electricity"|"sanitation"|"roads"|"streetlights"|"other","priority":"high"|"normal"|"low","summary":"<one sentence max 140 chars>"}}"""
+{{"category":"water"|"electricity"|"sanitation"|"roads"|"streetlights"|"other",
+"priority":"high"|"normal"|"low",
+"summary":"<one sentence max 140 chars>"}}"""
 
 _FALLBACK = RuleBasedTriage(is_fallback=True)
 
@@ -40,7 +42,12 @@ class OllamaTriage:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(
                     f"{self._base_url}/api/generate",
-                    json={"model": self._model, "prompt": prompt, "stream": False, "format": "json"},
+                    json={
+                        "model": self._model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "format": "json",
+                    },
                 )
                 resp.raise_for_status()
                 body = resp.json()
@@ -58,7 +65,11 @@ class OllamaTriage:
         except Exception as exc:
             logger.warning(
                 "Triage fallback triggered",
-                extra={"provider": "llm:ollama", "error_class": type(exc).__name__, "error": str(exc)},
+                extra={
+                    "provider": "llm:ollama",
+                    "error_class": type(exc).__name__,
+                    "error": str(exc),
+                },
             )
             fallback_counter.labels(original_provider="llm:ollama").inc()
             result = await _FALLBACK.triage(text, location)

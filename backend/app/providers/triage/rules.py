@@ -4,14 +4,20 @@ from app.providers.triage.base import TriageResult
 
 _CATEGORY_KEYWORDS: dict[str, list[str]] = {
     "water": ["water", "pipe", "burst", "flood", "leak", "sewage", "drain", "plumbing"],
-    "electricity": ["electricity", "power", "outage", "lesco", "wapda", "electric", "voltage", "transformer"],
+    "electricity": [
+        "electricity", "power", "outage", "lesco", "wapda",
+        "electric", "voltage", "transformer",
+    ],
     "sanitation": ["garbage", "waste", "trash", "sewage", "smell", "filth", "rubbish", "clean"],
     "roads": ["road", "pothole", "street", "pavement", "crack", "accident", "bridge"],
     "streetlights": ["light", "streetlight", "lamp", "dark", "bulb", "lighting"],
 }
 
 _PRIORITY_KEYWORDS: dict[str, list[str]] = {
-    "high": ["burst", "flood", "fire", "accident", "emergency", "urgent", "danger", "since morning", "outage"],
+    "high": [
+        "burst", "flood", "fire", "accident", "emergency",
+        "urgent", "danger", "since morning", "outage",
+    ],
     "low": ["minor", "small", "slight", "week", "months", "sometime"],
 }
 
