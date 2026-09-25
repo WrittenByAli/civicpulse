@@ -14,25 +14,58 @@ docker compose exec backend python scripts/seed.py
 ## Deploy (Kubernetes)
 
 ```bash
-kubectl apply -k k8s/overlays/prod
+# Always deploy by commit SHA — never :latest
+export SHA=$(git rev-parse HEAD)
+cd k8s/overlays/prod
+kustomize edit set image \
+  backend=ghcr.io/writtenbyali/civicpulse/backend:$SHA \
+  frontend=ghcr.io/writtenbyali/civicpulse/frontend:$SHA
+kubectl apply -k .
 kubectl rollout status deployment/backend -n civicpulse
 kubectl rollout status deployment/frontend -n civicpulse
 ```
 
 ## Rollback
 
-**Fast (imperative — use at 3 a.m.):**
+Two mechanisms. Use the right one for the moment.
+
+### Mechanism 1 — Imperative rollback (the 3 a.m. answer)
+
 ```bash
 kubectl rollout undo deployment/backend -n civicpulse
+kubectl rollout undo deployment/frontend -n civicpulse
+kubectl rollout status deployment/backend -n civicpulse
 ```
 
-**Correct (declarative — use once the fire is out):**
+**When to use:** Production is on fire right now. A bad deploy is causing errors or crashes and you need to stop the bleeding in under 30 seconds. Kubernetes switches to the previous ReplicaSet immediately. No git history, no PR, no review — just speed.
+
+**Drawback:** "What is production running?" no longer has a one-word answer. The cluster and the git overlay are now out of sync. You must follow up with Mechanism 2 once the incident is over.
+
+---
+
+### Mechanism 2 — Declarative rollback (the correct answer once the fire is out)
+
 ```bash
-# Edit overlays/prod/kustomization.yaml to point to the previous SHA
-kubectl apply -k k8s/overlays/prod
+# Find the last known-good SHA from git log or the GitHub Actions run
+GOOD_SHA=<previous-commit-sha>
+
+cd k8s/overlays/prod
+kustomize edit set image \
+  backend=ghcr.io/writtenbyali/civicpulse/backend:$GOOD_SHA \
+  frontend=ghcr.io/writtenbyali/civicpulse/frontend:$GOOD_SHA
+
+# Commit and push — this goes through the normal PR → CI → merge → CD pipeline
+git add kustomization.yaml
+git commit -m "revert: roll back to $GOOD_SHA after incident"
+git push origin dev
+# Open PR to main → CI passes → CD redeploys with the known-good SHA
 ```
 
-Use the imperative rollback when speed matters and you need to stop the bleeding immediately. Use the declarative rollback to restore a known-good state in a way that is auditable, reviewable and reversible through the normal PR process.
+**When to use:** After the immediate incident is resolved (or as the first step when you have time). This is auditable — the rollback appears in git history, the SHA is traceable with `git show`, and the CI gate verifies the known-good build before it reaches production. This is the answer the on-call handoff report should reference.
+
+**When NOT to use Mechanism 1 alone:** If you only do the imperative rollback and never follow up with the declarative one, the overlay file still points to the broken SHA. The next CD run will redeploy the broken version.
+
+---
 
 ## Reading structured logs
 
@@ -44,20 +77,20 @@ docker compose logs backend --follow | jq .
 kubectl logs -l app=backend -n civicpulse --follow | jq .
 ```
 
-Every log line includes `request_id` (from `X-Request-ID` header), `level`, `timestamp` and `message`. Filter for triage fallbacks:
+Every log line carries `request_id` (from `X-Request-ID` header), `level`, `timestamp` and `message`. Filter for triage fallbacks:
 
 ```bash
-kubectl logs -l app=backend -n civicpulse | jq 'select(.level=="WARNING" and .event=="triage_fallback")'
+kubectl logs -l app=backend -n civicpulse | jq 'select(.level=="WARNING")'
 ```
 
 ## When triage starts failing
 
-1. Check `/api/meta/providers` — look at the last 20 outcomes for fallback rate
-2. Check logs for `triage_fallback` WARNING entries — they include `provider` and `error_class`
-3. If Groq is rate-limited: the system falls back to `RuleBasedTriage` automatically; no action needed
-4. If fallback rate is sustained (>50% over 10 minutes): consider switching `TRIAGE_PROVIDER=rules` temporarily
-5. To switch provider without redeploying (Kubernetes):
+1. Check `/api/meta/providers` — look at the last 20 outcomes for `fallback: true` rate
+2. Check `/metrics` for `civicpulse_triage_fallbacks_total` counter by provider
+3. Check logs for WARNING entries — they include `provider` and `error_class`
+4. If Groq is rate-limited: system falls back to `RuleBasedTriage` automatically; no action needed
+5. If sustained fallback rate (> 50% over 10 min): switch provider without redeploying:
    ```bash
    kubectl set env deployment/backend TRIAGE_PROVIDER=rules -n civicpulse
    ```
-6. Monitor `/api/meta/providers` until the LLM recovers, then switch back
+6. Monitor `/api/meta/providers` until LLM recovers, then switch back
