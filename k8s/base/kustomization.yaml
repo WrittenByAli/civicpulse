@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: civicpulse
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: civicpulse
+    includeSelectors: false
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - postgres-statefulset.yaml
+  - postgres-service.yaml
+  - redis-pvc.yaml
+  - redis-deployment.yaml
+  - redis-service.yaml
+  - backend-deployment.yaml
+  - backend-service.yaml
+  - backend-hpa.yaml
+  - backend-pdb.yaml
+  - backend-vpa.yaml
+  - frontend-deployment.yaml
+  - frontend-service.yaml
+  - ingress.yaml
