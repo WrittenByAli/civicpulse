@@ -46,6 +46,18 @@ async def create_complaint(
         triaged_by = cached["triaged_by"]
         triage_latency_ms = cached["latency_ms"]
         logger.info("Triage cache HIT for key %s", cache_key)
+        complaint = await complaint_repo.create_complaint(
+            db,
+            text=text,
+            location=location,
+            reporter_contact=reporter_contact,
+            category=category,
+            priority=priority,
+            ai_summary=ai_summary,
+            triaged_by=triaged_by,
+            triage_latency_ms=triage_latency_ms,
+        )
+        return complaint
     else:
         result = await provider.triage(text, location)
         category = result.category
@@ -63,10 +75,18 @@ async def create_complaint(
                 "ai_summary": ai_summary,
                 "triaged_by": triaged_by,
                 "latency_ms": triage_latency_ms,
+                "is_fallback": result.is_fallback,
             }),
         )
 
-        outcome = {"triaged_by": triaged_by, "category": category, "priority": priority}
+        # Store provider, latency_ms, fallback y/n — the spec's observability surface
+        outcome = {
+            "triaged_by": triaged_by,
+            "category": category,
+            "priority": priority,
+            "latency_ms": triage_latency_ms,
+            "fallback": result.is_fallback,
+        }
         await redis.lpush(_OUTCOME_STORE_KEY, json.dumps(outcome))
         await redis.ltrim(_OUTCOME_STORE_KEY, 0, _OUTCOME_MAX - 1)
 
@@ -122,7 +142,10 @@ async def update_status(
     current = ComplaintStatus(complaint.status)
     assert_transition(current, new_status)
 
-    updated = await complaint_repo.update_complaint_status(db, complaint_id, new_status.value)
+    updated = await complaint_repo.update_complaint_status(
+        db, complaint_id, new_status.value,
+    )
+    assert updated is not None
     return updated
 
 

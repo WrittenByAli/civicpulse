@@ -5,6 +5,7 @@ import time
 
 import httpx
 
+from app.metrics import fallback_counter, triage_latency
 from app.providers.triage.base import TriageResult
 from app.providers.triage.rules import RuleBasedTriage
 
@@ -19,7 +20,9 @@ You are a municipal complaint classifier. Classify the following complaint.
 <location>{location}</location>
 
 Respond with JSON only, no explanation. Schema:
-{{"category":"water"|"electricity"|"sanitation"|"roads"|"streetlights"|"other","priority":"high"|"normal"|"low","summary":"<one sentence max 140 chars>"}}"""
+{{"category":"water"|"electricity"|"sanitation"|"roads"|"streetlights"|"other",
+"priority":"high"|"normal"|"low",
+"summary":"<one sentence max 140 chars>"}}"""
 
 _FALLBACK = RuleBasedTriage(is_fallback=True)
 
@@ -39,19 +42,36 @@ class OllamaTriage:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(
                     f"{self._base_url}/api/generate",
-                    json={"model": self._model, "prompt": prompt, "stream": False, "format": "json"},
+                    json={
+                        "model": self._model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "format": "json",
+                    },
                 )
                 resp.raise_for_status()
                 body = resp.json()
                 parsed = json.loads(body["response"])
-                latency_ms = int((time.monotonic() - t0) * 1000)
+                latency_s = time.monotonic() - t0
+                triage_latency.labels(provider="llm:ollama").observe(latency_s)
                 return TriageResult(
                     category=parsed.get("category", "other"),
                     priority=parsed.get("priority", "normal"),
                     ai_summary=str(parsed.get("summary", ""))[:140],
                     triaged_by="llm:ollama",
-                    latency_ms=latency_ms,
+                    latency_ms=int(latency_s * 1000),
+                    is_fallback=False,
                 )
         except Exception as exc:
-            logger.warning("Ollama triage failed, falling back to rules: %s", exc)
-            return await _FALLBACK.triage(text, location)
+            logger.warning(
+                "Triage fallback triggered",
+                extra={
+                    "provider": "llm:ollama",
+                    "error_class": type(exc).__name__,
+                    "error": str(exc),
+                },
+            )
+            fallback_counter.labels(original_provider="llm:ollama").inc()
+            result = await _FALLBACK.triage(text, location)
+            result.is_fallback = True
+            return result

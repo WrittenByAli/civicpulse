@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 
@@ -9,6 +9,7 @@ class TriageResult:
     ai_summary: str
     triaged_by: str
     latency_ms: int
+    is_fallback: bool = field(default=False)
 
 
 @runtime_checkable
