@@ -1,0 +1,74 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: civicpulse
+      POSTGRES_PASSWORD: civicpulse
+      POSTGRES_DB: civicpulse
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U civicpulse"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://civicpulse:civicpulse@postgres:5432/civicpulse
+      REDIS_URL: redis://redis:6379/0
+      TRIAGE_PROVIDER: ${TRIAGE_PROVIDER:-rules}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 5
+
+  migrate:
+    build:
+      context: backend
+    command: >
+      sh -c "alembic upgrade head && python /scripts/seed.py"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://civicpulse:civicpulse@postgres:5432/civicpulse
+      REDIS_URL: redis://redis:6379/0
+      TRIAGE_PROVIDER: rules
+    volumes:
+      - ./scripts:/scripts:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: "no"
+
+  frontend:
+    build:
+      context: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
