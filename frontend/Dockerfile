@@ -8,9 +8,13 @@ RUN npm run build
 
 # Stage 2 — serve with nginx; Node toolchain never reaches the final image
 FROM nginx:alpine AS runtime
+RUN addgroup -S civicpulse && adduser -S -G civicpulse civicpulse \
+    && chown -R civicpulse:civicpulse /var/cache/nginx /var/log/nginx /etc/nginx/conf.d \
+    && touch /var/run/nginx.pid && chown civicpulse:civicpulse /var/run/nginx.pid
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+USER civicpulse
+EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost/health || exit 1
+  CMD wget -qO- http://localhost:8080/health || exit 1
 CMD ["nginx", "-g", "daemon off;"]

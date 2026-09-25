@@ -8,6 +8,8 @@ services:
       POSTGRES_DB: civicpulse
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U civicpulse"]
       interval: 5s
@@ -16,6 +18,10 @@ services:
 
   redis:
     image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -33,6 +39,9 @@ services:
       LOG_LEVEL: INFO
     ports:
       - "8000:8000"
+    networks:
+      - edge
+      - internal
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,6 +65,8 @@ services:
       TRIAGE_PROVIDER: rules
     volumes:
       - ./scripts:/scripts:ro
+    networks:
+      - internal
     depends_on:
       backend:
         condition: service_healthy
@@ -65,10 +76,19 @@ services:
     build:
       context: frontend
     ports:
-      - "80:80"
+      - "80:8080"
+    networks:
+      - edge
     depends_on:
       backend:
         condition: service_healthy
 
 volumes:
   postgres_data:
+  redis_data:
+
+networks:
+  edge:
+    driver: bridge
+  internal:
+    driver: bridge
