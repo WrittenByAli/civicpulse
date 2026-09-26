@@ -57,12 +57,16 @@ export interface ProviderOutcome {
   category: ComplaintCategory
   priority: ComplaintPriority
   latency_ms: number
+  confidence: number | null
   fallback: boolean
 }
 
 export interface ProviderMetaResponse {
   active_provider: string
   last_outcomes: ProviderOutcome[]
+  cache_hit_rate: number | null
+  cache_hits: number
+  cache_misses: number
 }
 
 export interface ApiError {

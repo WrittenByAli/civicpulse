@@ -3,22 +3,34 @@ import time
 from app.providers.triage.base import TriageResult
 
 _CATEGORY_KEYWORDS: dict[str, list[str]] = {
-    "water": ["water", "pipe", "burst", "flood", "leak", "sewage", "drain", "plumbing"],
+    "water": [
+        "water", "pipe", "burst", "flood", "leak", "sewage", "drain", "plumbing",
+        "tanker", "supply", "tap", "boring", "tubewell", "wasa", "nala", "gutter",
+    ],
     "electricity": [
         "electricity", "power", "outage", "lesco", "wapda",
-        "electric", "voltage", "transformer",
+        "electric", "voltage", "transformer", "wire", "meter",
+        "load shedding", "loadshedding", "current gone", "bijli",
     ],
-    "sanitation": ["garbage", "waste", "trash", "sewage", "smell", "filth", "rubbish", "clean"],
-    "roads": ["road", "pothole", "street", "pavement", "crack", "accident", "bridge"],
-    "streetlights": ["light", "streetlight", "lamp", "dark", "bulb", "lighting"],
+    "sanitation": [
+        "garbage", "waste", "trash", "smell", "filth", "rubbish", "clean",
+        "dump", "bin", "sweeper", "stink", "sanitation", "litter",
+    ],
+    "roads": [
+        "road", "pothole", "pavement", "crack", "accident", "bridge",
+        "highway", "footpath", "speed bump", "construction", "sinkhole",
+    ],
+    "streetlights": ["streetlight", "lamp", "dark", "bulb", "lighting", "light pole"],
 }
 
 _PRIORITY_KEYWORDS: dict[str, list[str]] = {
     "high": [
         "burst", "flood", "fire", "accident", "emergency",
-        "urgent", "danger", "since morning", "outage",
+        "urgent", "danger", "since morning", "outage", "collapse",
+        "injured", "children", "sick", "health", "hazard",
+        "immediately", "critical", "no water", "no electricity",
     ],
-    "low": ["minor", "small", "slight", "week", "months", "sometime"],
+    "low": ["minor", "small", "slight", "week", "months", "sometime", "cosmetic"],
 }
 
 

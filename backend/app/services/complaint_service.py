@@ -8,8 +8,10 @@ from typing import Any
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.metrics import fallback_counter
 from app.models import Complaint, ComplaintStatus
 from app.providers.triage import TriageProvider
+from app.providers.triage.rules import RuleBasedTriage
 from app.repositories import complaint_repo
 from app.schemas import ComplaintListResponse, ComplaintResponse
 from app.services.state_machine import assert_transition
@@ -52,7 +54,18 @@ async def create_complaint(
         await redis.incr(_CACHE_HIT_KEY)
         logger.info("Triage cache HIT for key %s", cache_key)
     else:
-        result = await provider.triage(text, location)
+        try:
+            result = await provider.triage(text, location)
+        except Exception:
+            logger.warning(
+                "Provider %s raised unexpectedly — falling back to rules",
+                provider.name(),
+                exc_info=True,
+            )
+            fallback_counter.labels(original_provider=provider.name()).inc()
+            _fallback = RuleBasedTriage(is_fallback=True)
+            result = await _fallback.triage(text, location)
+            result.is_fallback = True
         category = result.category
         priority = result.priority
         ai_summary = result.ai_summary
