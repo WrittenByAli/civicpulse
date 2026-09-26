@@ -60,5 +60,6 @@ class RuleBasedTriage:
             ai_summary=summary_text[:140],
             triaged_by=self.name(),
             latency_ms=int(latency_s * 1000),
+            confidence=0.75,  # rules are deterministic but medium confidence
             is_fallback=self._is_fallback,
         )

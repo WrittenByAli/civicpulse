@@ -67,6 +67,9 @@ function TriageResult({ result }: { result: ComplaintResponse }) {
     ...(result.triage_latency_ms != null
       ? [{ label: 'Latency', value: `${result.triage_latency_ms}ms`, mono: true }]
       : []),
+    ...(result.ai_confidence != null
+      ? [{ label: 'Confidence', value: `${Math.round(result.ai_confidence * 100)}%`, mono: true }]
+      : []),
   ]
 
   return (

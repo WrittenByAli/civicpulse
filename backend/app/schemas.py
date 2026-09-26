@@ -71,6 +71,7 @@ class ComplaintResponse(BaseModel):
     ai_summary: str | None
     triaged_by: str | None
     triage_latency_ms: int | None
+    ai_confidence: float | None
     created_at: datetime
     updated_at: datetime
 
@@ -93,3 +94,6 @@ class StatsResponse(BaseModel):
 class ProviderMetaResponse(BaseModel):
     active_provider: str
     last_outcomes: list[dict]
+    cache_hit_rate: float | None = None
+    cache_hits: int = 0
+    cache_misses: int = 0

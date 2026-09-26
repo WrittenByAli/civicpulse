@@ -1,7 +1,7 @@
 import uuid
 from enum import Enum
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -73,6 +73,7 @@ class Complaint(Base):
     ai_summary: Mapped[str | None] = mapped_column(String(140), nullable=True)
     triaged_by: Mapped[str | None] = mapped_column(String(20), nullable=True)
     triage_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    ai_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 _TRIAGE_CACHE_TTL = 86400  # 24 hours
 _OUTCOME_STORE_KEY = "meta:outcomes"
 _OUTCOME_MAX = 20
+_CACHE_HIT_KEY = "meta:cache_hits"
+_CACHE_MISS_KEY = "meta:cache_misses"
 
 
 def _triage_cache_key(text: str, location: str) -> str:
@@ -46,20 +48,9 @@ async def create_complaint(
         ai_summary = cached["ai_summary"]
         triaged_by = cached["triaged_by"]
         triage_latency_ms = cached["latency_ms"]
+        ai_confidence = cached.get("confidence")
+        await redis.incr(_CACHE_HIT_KEY)
         logger.info("Triage cache HIT for key %s", cache_key)
-        complaint = await complaint_repo.create_complaint(
-            db,
-            text=text,
-            location=location,
-            reporter_contact=reporter_contact,
-            category=category,
-            priority=priority,
-            ai_summary=ai_summary,
-            triaged_by=triaged_by,
-            triage_latency_ms=triage_latency_ms,
-            owner_id=owner_id,
-        )
-        return complaint
     else:
         result = await provider.triage(text, location)
         category = result.category
@@ -67,6 +58,8 @@ async def create_complaint(
         ai_summary = result.ai_summary
         triaged_by = result.triaged_by
         triage_latency_ms = result.latency_ms
+        ai_confidence = result.confidence
+        await redis.incr(_CACHE_MISS_KEY)
 
         await redis.setex(
             cache_key,
@@ -77,16 +70,17 @@ async def create_complaint(
                 "ai_summary": ai_summary,
                 "triaged_by": triaged_by,
                 "latency_ms": triage_latency_ms,
+                "confidence": ai_confidence,
                 "is_fallback": result.is_fallback,
             }),
         )
 
-        # Store provider, latency_ms, fallback y/n — the spec's observability surface
         outcome = {
             "triaged_by": triaged_by,
             "category": category,
             "priority": priority,
             "latency_ms": triage_latency_ms,
+            "confidence": ai_confidence,
             "fallback": result.is_fallback,
         }
         await redis.lpush(_OUTCOME_STORE_KEY, json.dumps(outcome))
@@ -102,6 +96,7 @@ async def create_complaint(
         ai_summary=ai_summary,
         triaged_by=triaged_by,
         triage_latency_ms=triage_latency_ms,
+        ai_confidence=ai_confidence,
         owner_id=owner_id,
     )
     return complaint
@@ -157,4 +152,14 @@ async def update_status(
 async def get_provider_meta(redis: Redis, active_provider: str) -> dict[str, Any]:
     raw_outcomes = await redis.lrange(_OUTCOME_STORE_KEY, 0, _OUTCOME_MAX - 1)
     outcomes = [json.loads(o) for o in raw_outcomes]
-    return {"active_provider": active_provider, "last_outcomes": outcomes}
+    hits = int(await redis.get(_CACHE_HIT_KEY) or 0)
+    misses = int(await redis.get(_CACHE_MISS_KEY) or 0)
+    total = hits + misses
+    hit_rate = round(hits / total, 3) if total else None
+    return {
+        "active_provider": active_provider,
+        "last_outcomes": outcomes,
+        "cache_hits": hits,
+        "cache_misses": misses,
+        "cache_hit_rate": hit_rate,
+    }

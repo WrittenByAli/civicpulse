@@ -19,6 +19,7 @@ async def create_complaint(
     ai_summary: str | None,
     triaged_by: str | None,
     triage_latency_ms: int | None,
+    ai_confidence: float | None = None,
     owner_id: uuid.UUID | None = None,
 ) -> Complaint:
     complaint = Complaint(
@@ -32,6 +33,7 @@ async def create_complaint(
         ai_summary=ai_summary,
         triaged_by=triaged_by,
         triage_latency_ms=triage_latency_ms,
+        ai_confidence=ai_confidence,
     )
     db.add(complaint)
     await db.flush()

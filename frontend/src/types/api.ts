@@ -22,6 +22,7 @@ export interface ComplaintResponse {
   ai_summary: string | null
   triaged_by: string | null
   triage_latency_ms: number | null
+  ai_confidence: number | null
   created_at: string
   updated_at: string
 }
