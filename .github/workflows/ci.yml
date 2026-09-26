@@ -340,11 +340,11 @@ jobs:
 
       - name: X-Cache MISS then HIT
         run: |
-          MISS=$(curl -sI http://localhost:8000/api/stats \
+          MISS=$(curl -sD- -o /dev/null http://localhost:8000/api/stats \
             -H "Authorization: Bearer $TOKEN" | grep -i x-cache | tr -d '\r')
           echo "First:  $MISS"
           echo "$MISS" | grep -i MISS
-          HIT=$(curl -sI http://localhost:8000/api/stats \
+          HIT=$(curl -sD- -o /dev/null http://localhost:8000/api/stats \
             -H "Authorization: Bearer $TOKEN" | grep -i x-cache | tr -d '\r')
           echo "Second: $HIT"
           echo "$HIT" | grep -i HIT
