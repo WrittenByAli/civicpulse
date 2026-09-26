@@ -63,9 +63,10 @@ function NavTabs() {
   const { user } = useAuth()
   const location = useLocation()
 
+  const isOperator = user?.role === 'operator'
   const navItems = [
     { to: '/', label: 'Submit', end: true, roles: ['citizen', 'operator'] },
-    { to: '/complaints', label: 'Operations', end: false, roles: ['citizen', 'operator'] },
+    { to: '/complaints', label: isOperator ? 'Operations' : 'My Complaints', end: false, roles: ['citizen', 'operator'] },
     { to: '/stats', label: 'Analytics', end: false, roles: ['operator'] },
   ].filter((item) => !user || item.roles.includes(user.role))
 
@@ -100,9 +101,10 @@ function NavTabs() {
 function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, logout } = useAuth()
 
+  const isOperator = user?.role === 'operator'
   const navItems = [
     { to: '/', label: 'Submit', end: true, roles: ['citizen', 'operator'] },
-    { to: '/complaints', label: 'Operations', end: false, roles: ['citizen', 'operator'] },
+    { to: '/complaints', label: isOperator ? 'Operations' : 'My Complaints', end: false, roles: ['citizen', 'operator'] },
     { to: '/stats', label: 'Analytics', end: false, roles: ['operator'] },
   ].filter((item) => !user || item.roles.includes(user.role))
 
