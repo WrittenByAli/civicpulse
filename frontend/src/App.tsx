@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
+import { OperatorPendingPage } from './pages/OperatorPendingPage'
 import { SignupPage } from './pages/SignupPage'
 import { StatsPage } from './pages/StatsPage'
 import { SubmitPage } from './pages/SubmitPage'
@@ -249,6 +250,7 @@ export default function App() {
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
+                <Route path="/operator-pending" element={<ProtectedRoute><OperatorPendingPage /></ProtectedRoute>} />
                 <Route
                   path="/"
                   element={

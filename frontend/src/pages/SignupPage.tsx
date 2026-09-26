@@ -63,7 +63,12 @@ export function SignupPage() {
     try {
       const { access_token } = await apiVerifyEmail({ email, otp: code })
       await login(access_token)
-      navigate('/', { replace: true })
+      // If operator was requested, user is created as citizen pending approval
+      if (role === 'operator') {
+        navigate('/operator-pending', { replace: true })
+      } else {
+        navigate('/', { replace: true })
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : 'Verification failed')
       setOtp(['', '', '', '', '', ''])

@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     FROM_EMAIL: str = "CivicPulse <noreply@civicpulse.app>"
     FRONTEND_URL: str = "http://localhost"
 
+    # The administrator who receives and approves operator access requests
+    MAIN_OPERATOR_EMAIL: str = ""
+    # How long (seconds) an approval link stays valid
+    OPERATOR_REQUEST_TTL_SECONDS: int = 72 * 3600  # 72 hours
+
     OTP_TTL_SECONDS: int = 600          # 10 minutes
     OTP_RESEND_COOLDOWN_SECONDS: int = 60
     OTP_MAX_ATTEMPTS: int = 5

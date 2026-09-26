@@ -39,6 +39,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       FROM_EMAIL: ${FROM_EMAIL:-CivicPulse <onboarding@resend.dev>}
+      MAIN_OPERATOR_EMAIL: ${MAIN_OPERATOR_EMAIL:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       LOG_LEVEL: INFO
     ports:
       - "8000:8000"
