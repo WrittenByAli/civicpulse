@@ -180,3 +180,59 @@ async def test_complaint_text_with_curly_braces(client):
         },
     )
     assert resp.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_get_stats_returns_200(client):
+    """Stats endpoint returns totals and breakdowns for operator."""
+    await client.post(
+        "/api/complaints",
+        json={"text": "Water supply disruption in our area for three days", "location": "Lahore"},
+    )
+    resp = await client.get("/api/stats")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "total" in data
+    assert "by_status" in data
+    assert "by_category" in data
+    assert "by_priority" in data
+    assert data["total"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_list_complaints_with_status_filter(client):
+    """Listing complaints filtered by status returns only matching items."""
+    await client.post(
+        "/api/complaints",
+        json={"text": "Electricity outage in our sector for many hours", "location": "Lahore"},
+    )
+    resp = await client.get("/api/complaints?status=open")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "items" in data
+    for item in data["items"]:
+        assert item["status"] == "open"
+
+
+@pytest.mark.asyncio
+async def test_list_complaints_invalid_page_returns_422(client):
+    """page=0 is rejected with 422."""
+    resp = await client.get("/api/complaints?page=0")
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_list_complaints_invalid_per_page_returns_422(client):
+    """per_page=200 exceeds the maximum and is rejected with 422."""
+    resp = await client.get("/api/complaints?per_page=200")
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_status_nonexistent_complaint_returns_404(client):
+    """PATCH on a complaint that does not exist returns 404."""
+    resp = await client.patch(
+        "/api/complaints/00000000-0000-0000-0000-000000000099/status",
+        json={"status": "in_progress"},
+    )
+    assert resp.status_code == 404
