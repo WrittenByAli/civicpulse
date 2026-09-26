@@ -22,11 +22,13 @@ class SimulatedTriage:
         summary = text[:97] + "…" if len(text) > 100 else text
         latency_s = time.monotonic() - t0
         triage_latency.labels(provider="simulated").observe(latency_s)
+        confidence = round(0.70 + ((digest >> 16) % 30) / 100, 2)  # deterministic 0.70-0.99
         return TriageResult(
             category=category,
             priority=priority,
             ai_summary=summary[:140],
             triaged_by="simulated",
             latency_ms=int(latency_s * 1000),
+            confidence=confidence,
             is_fallback=False,
         )

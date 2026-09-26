@@ -11,7 +11,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from app.config import settings
 from app.logging_config import configure_logging
 from app.middleware import RateLimitMiddleware, RequestIdMiddleware
-from app.routes import complaints, health, meta, stats
+from app.routes import auth, complaints, health, meta, stats
 
 configure_logging(settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
@@ -55,6 +55,7 @@ app.add_middleware(RateLimitMiddleware)
 app.add_middleware(RequestIdMiddleware)
 
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(complaints.router)
 app.include_router(stats.router)
 app.include_router(meta.router)
