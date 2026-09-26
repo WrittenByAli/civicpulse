@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ApiError, listComplaints, getStats } from '../api/client'
+import { ApiError, listComplaints, getStats, updateStatus } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import type {
   ComplaintCategory,
@@ -17,6 +17,12 @@ const CATEGORIES: ComplaintCategory[] = [
 ]
 const PRIORITIES: ComplaintPriority[] = ['high', 'normal', 'low']
 
+const NEXT_STATUSES: Record<ComplaintStatus, ComplaintStatus[]> = {
+  open: ['in_progress', 'rejected'],
+  in_progress: ['resolved', 'rejected'],
+  resolved: [],
+  rejected: [],
+}
 
 const STATUS_BADGE: Record<string, string> = {
   open: 'badge-open',
@@ -229,6 +235,7 @@ export function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [transitionErrors, setTransitionErrors] = useState<Record<string, string>>({})
   const [stats, setStats] = useState<StatsResponse | null>(null)
 
   const load = useCallback(async () => {
@@ -260,6 +267,17 @@ export function DashboardPage() {
         .catch(() => {})
     }
   }, [isOperator])
+
+  async function handleStatusChange(id: string, newStatus: ComplaintStatus) {
+    setTransitionErrors((prev) => ({ ...prev, [id]: '' }))
+    try {
+      const updated = await updateStatus(id, { status: newStatus })
+      setItems((prev) => prev.map((c) => (c.id === id ? updated : c)))
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.detail : 'Unexpected error.'
+      setTransitionErrors((prev) => ({ ...prev, [id]: msg }))
+    }
+  }
 
   const filteredItems = searchQuery
     ? items.filter(
@@ -427,6 +445,9 @@ export function DashboardPage() {
                   <ComplaintTableRow
                     key={c.id}
                     complaint={c}
+                    isOperator={isOperator}
+                    onStatusChange={handleStatusChange}
+                    transitionError={transitionErrors[c.id]}
                   />
                 ))}
               </tbody>
@@ -480,41 +501,86 @@ export function DashboardPage() {
 
 /* ── Table Row ─────────────────────────────────────────────────────────────── */
 
-function ComplaintTableRow({ complaint }: { complaint: ComplaintResponse }) {
+function ComplaintTableRow({
+  complaint,
+  isOperator = false,
+  onStatusChange,
+  transitionError,
+}: {
+  complaint: ComplaintResponse
+  isOperator?: boolean
+  onStatusChange?: (id: string, newStatus: ComplaintStatus) => Promise<void>
+  transitionError?: string
+}) {
+  const [transitioning, setTransitioning] = useState(false)
+  const nextStatuses = NEXT_STATUSES[complaint.status] ?? []
+
+  async function handleAdvance(newStatus: ComplaintStatus) {
+    if (!onStatusChange) return
+    setTransitioning(true)
+    await onStatusChange(complaint.id, newStatus)
+    setTransitioning(false)
+  }
+
   return (
-    <tr className="hover:bg-slate-50 transition-colors">
-      <td className="px-4 py-3 font-mono text-xs text-slate-900">
-        CP-{complaint.id.slice(0, 8).toUpperCase()}
-      </td>
-      <td className="px-4 py-3">
-        <span className="badge bg-civic-50 text-civic-700 border border-civic-200 capitalize">
-          {complaint.category}
-        </span>
-      </td>
-      <td className="px-4 py-3">
-        <span className={`badge ${PRIORITY_BADGE[complaint.priority] ?? ''} capitalize`}>
-          {complaint.priority}
-        </span>
-      </td>
-      <td className="px-4 py-3">
-        <span className={`badge ${STATUS_BADGE[complaint.status] ?? ''} capitalize`}>
-          {complaint.status.replace('_', ' ')}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-slate-600 max-w-[200px] truncate">
-        {complaint.location}
-      </td>
-      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
-        {new Date(complaint.created_at).toLocaleDateString()}
-      </td>
-      <td className="px-4 py-3">
-        <Link
-          to={`/complaints/${complaint.id}`}
-          className="text-sm font-medium text-civic-600 hover:text-civic-700 transition-colors"
-        >
-          View
-        </Link>
-      </td>
-    </tr>
+    <>
+      <tr className="hover:bg-slate-50 transition-colors">
+        <td className="px-4 py-3 font-mono text-xs text-slate-900">
+          CP-{complaint.id.slice(0, 8).toUpperCase()}
+        </td>
+        <td className="px-4 py-3">
+          <span className="badge bg-civic-50 text-civic-700 border border-civic-200 capitalize">
+            {complaint.category}
+          </span>
+        </td>
+        <td className="px-4 py-3">
+          <span className={`badge ${PRIORITY_BADGE[complaint.priority] ?? ''} capitalize`}>
+            {complaint.priority}
+          </span>
+        </td>
+        <td className="px-4 py-3">
+          <span className={`badge ${STATUS_BADGE[complaint.status] ?? ''} capitalize`}>
+            {complaint.status.replace('_', ' ')}
+          </span>
+        </td>
+        <td className="px-4 py-3 text-slate-600 max-w-[200px] truncate">
+          {complaint.location}
+        </td>
+        <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+          {new Date(complaint.created_at).toLocaleDateString()}
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to={`/complaints/${complaint.id}`}
+              className="text-sm font-medium text-civic-600 hover:text-civic-700 transition-colors"
+            >
+              View
+            </Link>
+            {isOperator && nextStatuses.map((s) => (
+              <button
+                key={s}
+                disabled={transitioning}
+                onClick={() => { void handleAdvance(s) }}
+                className="text-xs rounded-full border border-slate-300 bg-white px-2 py-0.5
+                           text-slate-600 hover:bg-slate-100 hover:border-slate-400 capitalize
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                → {s.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
+        </td>
+      </tr>
+      {isOperator && transitionError && (
+        <tr>
+          <td colSpan={7} className="px-4 pb-2 pt-0">
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700">
+              {transitionError}
+            </p>
+          </td>
+        </tr>
+      )}
+    </>
   )
 }
