@@ -6,8 +6,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_redis, require_operator
-from app.models import User
+from app.dependencies import get_redis
 from app.repositories import complaint_repo
 from app.schemas import StatsResponse
 
@@ -23,7 +22,6 @@ async def get_stats(
     response: Response,
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
-    _: User = Depends(require_operator),
 ) -> StatsResponse:
     cached = await redis.get(_STATS_CACHE_KEY)
     if cached:
