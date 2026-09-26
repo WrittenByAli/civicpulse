@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ApiError, submitComplaint } from '../api/client'
@@ -41,7 +41,41 @@ function TriageLoading() {
   )
 }
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(() => {
+      const el = document.createElement('textarea')
+      el.value = text
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }, [text])
+  return (
+    <button
+      onClick={handleCopy}
+      aria-label="Copy complaint ID"
+      className="ml-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+    >
+      {copied ? (
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+      ) : (
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      )}
+      {copied ? 'Copied' : 'Copy'}
+    </button>
+  )
+}
+
 function SuccessScreen({ result }: { result: ComplaintResponse }) {
+  const complaintId = `CP-${result.id.slice(0, 8).toUpperCase()}`
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -60,7 +94,13 @@ function SuccessScreen({ result }: { result: ComplaintResponse }) {
       </p>
 
       <div className="mt-8 grid grid-cols-2 gap-4 text-left">
-        <InfoItem label="Complaint ID" value={`CP-${result.id.slice(0, 8).toUpperCase()}`} mono />
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Complaint ID</p>
+          <p className="mt-1 flex items-center font-mono text-sm text-slate-900">
+            {complaintId}
+            <CopyButton text={complaintId} />
+          </p>
+        </div>
         <InfoItem label="Category" value={result.category} badge="category" />
         <InfoItem label="Priority" value={result.priority} badge="priority" />
         <InfoItem label="Status" value={result.status} badge="status" />
