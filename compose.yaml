@@ -41,6 +41,11 @@ services:
       FROM_EMAIL: ${FROM_EMAIL:-CivicPulse <onboarding@resend.dev>}
       MAIN_OPERATOR_EMAIL: ${MAIN_OPERATOR_EMAIL:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
       LOG_LEVEL: INFO
     ports:
       - "8000:8000"

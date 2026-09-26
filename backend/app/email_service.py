@@ -1,8 +1,15 @@
-"""Transactional email via Resend REST API (httpx — no extra package needed).
+"""Transactional email — SMTP first, Resend fallback, console last.
 
-If RESEND_API_KEY is empty the message is written to stdout only (dev fallback).
+Priority:
+  1. Gmail SMTP (SMTP_HOST + SMTP_USER + SMTP_PASS set) — any recipient
+  2. Resend REST API (RESEND_API_KEY set)  — free tier: owner email only
+  3. Console log (dev fallback)
 """
+import asyncio
 import logging
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 import httpx
 
@@ -43,9 +50,35 @@ def _wrap(body_html: str) -> str:
 </body></html>"""
 
 
+def _smtp_send_sync(to: str, subject: str, html: str) -> None:
+    """Blocking SMTP send — run inside a thread via asyncio.to_thread."""
+    from_addr = settings.SMTP_FROM or settings.SMTP_USER
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = from_addr
+    msg["To"] = to
+    msg.attach(MIMEText(html, "html"))
+    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        server.login(settings.SMTP_USER, settings.SMTP_PASS)
+        server.sendmail(from_addr, [to], msg.as_string())
+
+
 async def _send(to: str, subject: str, html: str) -> None:
+    # ── 1. SMTP (Gmail App Password — works for any recipient) ───────────────
+    if settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASS:
+        try:
+            await asyncio.to_thread(_smtp_send_sync, to, subject, html)
+            logger.info("[EMAIL] SMTP delivery OK → %s", to)
+            return
+        except Exception as exc:
+            logger.error("[EMAIL] SMTP failed (%s) — falling back to Resend", exc)
+
+    # ── 2. Resend REST API ───────────────────────────────────────────────────
     if not settings.RESEND_API_KEY:
-        logger.warning("[DEV] RESEND_API_KEY not set — email to %s not sent. Subject: %s", to, subject)
+        logger.warning("[DEV] No email backend configured — email to %s not sent. Subject: %s", to, subject)
         return
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(
@@ -55,10 +88,11 @@ async def _send(to: str, subject: str, html: str) -> None:
         )
     if resp.status_code not in (200, 201):
         logger.error("Resend API error %s: %s", resp.status_code, resp.text)
-        # 403 on free tier = recipient not verified with Resend account; log and continue
         if resp.status_code == 403:
-            logger.warning("[DEV] Resend blocked delivery to %s (unverified recipient on free tier). "
-                           "Subject: %s", to, subject)
+            logger.warning(
+                "[DEV] Resend blocked delivery to %s (unverified recipient on free tier). "
+                "Subject: %s — check docker compose logs for OTP", to, subject
+            )
             return
         raise RuntimeError(f"Email delivery failed ({resp.status_code})")
 

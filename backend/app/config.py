@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     FROM_EMAIL: str = "CivicPulse <noreply@civicpulse.app>"
     FRONTEND_URL: str = "http://localhost"
 
+    # SMTP (Gmail App Password — works for any recipient, unlike Resend free tier)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASS: str = ""
+    SMTP_FROM: str = ""
+
     # The administrator who receives and approves operator access requests
     MAIN_OPERATOR_EMAIL: str = ""
     # How long (seconds) an approval link stays valid
