@@ -151,3 +151,23 @@ Serves the default time-descending sort in `list_complaints` (`ORDER BY created_
 **Explicit invalidation alone:** if the `redis.delete("stats:global")` call fails (Redis momentarily unreachable after the complaint is written), the stale key lives forever and stats never update.
 
 **Together:** invalidation (`complaint_service.py`, `await redis.delete(_STATS_CACHE_KEY)` after `create_complaint`) gives immediate consistency on the happy path; TTL provides a 30-second safety net if invalidation is missed. This is the standard cache-aside pattern: write-through invalidation + TTL backstop.
+
+---
+
+## Addendum — Location picker design (added 2026-09-26)
+
+The complaint form now uses an interactive map (Leaflet + OpenStreetMap) instead of a plain
+text field. The design decision is documented in `docs/adr/0005-map-location-picker.md`.
+
+**Why the backend schema was not changed:** The backend `ComplaintCreate.location` field
+remains a `str` (max 200 chars). The map picker resolves a Nominatim reverse-geocoded address
+string and writes it into that field. Storing raw lat/lng would require a DB migration, a
+schema version bump, and changes to every place that reads `location` as display text. The
+address string is already meaningful to operators and citizens alike.
+
+**Nominatim fair-use:** Nominatim is called once per map click (user-initiated), never on a
+poll or bulk import. The 1 req/s fair-use limit is not relevant for interactive use.
+
+**Keyword search (added 2026-09-26):** `GET /api/complaints?keyword=<term>` performs a
+case-insensitive `ILIKE` on both `text` and `location` columns. Implementation is in
+`backend/app/repositories/complaint_repo.py` (`list_complaints`, `keyword` parameter).
