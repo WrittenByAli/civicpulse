@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ApiError, submitComplaint } from '../api/client'
 import type { ComplaintResponse } from '../types/api'
+import { LocationPicker } from '../components/LocationPicker'
 
 const MIN_TEXT = 10
 const MAX_TEXT = 2000
@@ -227,15 +228,32 @@ export function SubmitPage() {
               </label>
               <CharCount current={location.length} max={MAX_LOC} min={MIN_LOC} />
             </div>
-            <input
-              id="complaint-location"
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. Sector G, Street 12 (3 - 200 characters)"
-              disabled={loading}
-              className="input-field"
-            />
+            <div className="relative">
+              <input
+                id="complaint-location"
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Click the map → or type manually"
+                disabled={loading}
+                className="input-field pr-8"
+              />
+              {location.length > 0 && (
+                <svg
+                  width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2"
+                >
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+              )}
+            </div>
+            {location.length > 0 && !locValid && (
+              <p className="text-xs text-red-600">
+                Must be {MIN_LOC}–{MAX_LOC} characters (currently {location.length})
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -281,23 +299,31 @@ export function SubmitPage() {
         </form>
 
         {/* Right panel */}
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-4">
           <AnimatePresence mode="wait">
             {loading ? (
               <TriageLoading key="loading" />
             ) : (
               <motion.div
-                key="empty"
+                key="map"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="card flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400">
-                    <path d="M12 3v18M3 12h18" />
-                  </svg>
-                </div>
-                <p className="text-sm text-slate-500">AI triage results will appear here</p>
+                <LocationPicker
+                  onAddressSelect={setLocation}
+                  disabled={loading}
+                />
+                <p className="mt-2 text-xs text-slate-400 text-center">
+                  Powered by{' '}
+                  <a
+                    href="https://www.openstreetmap.org"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline hover:text-slate-600"
+                  >
+                    OpenStreetMap
+                  </a>
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
