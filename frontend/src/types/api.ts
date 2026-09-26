@@ -73,7 +73,9 @@ export type UserRole = 'citizen' | 'operator'
 export interface User {
   id: string
   email: string
+  full_name: string | null
   role: UserRole
+  is_verified: boolean
   created_at: string
 }
 
@@ -83,9 +85,25 @@ export interface TokenResponse {
 }
 
 export interface SignupRequest {
+  full_name: string
   email: string
   password: string
+  confirm_password: string
   role?: UserRole
+}
+
+export interface SignupPendingResponse {
+  pending: boolean
+  message: string
+}
+
+export interface VerifyEmailRequest {
+  email: string
+  otp: string
+}
+
+export interface ResendCodeRequest {
+  email: string
 }
 
 export interface LoginRequest {

@@ -8,10 +8,13 @@ import type {
   ComplaintResponse,
   LoginRequest,
   ProviderMetaResponse,
+  ResendCodeRequest,
+  SignupPendingResponse,
   SignupRequest,
   StatusUpdate,
   TokenResponse,
   User,
+  VerifyEmailRequest,
 } from '../types/api'
 
 export class ApiError extends Error {
@@ -131,8 +134,24 @@ export async function getProviderMeta(): Promise<ProviderMetaResponse> {
   return data
 }
 
-export async function signup(payload: SignupRequest): Promise<TokenResponse> {
-  const { data } = await request<TokenResponse>('/api/auth/signup', {
+export async function signup(payload: SignupRequest): Promise<SignupPendingResponse> {
+  const { data } = await request<SignupPendingResponse>('/api/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return data
+}
+
+export async function verifyEmail(payload: VerifyEmailRequest): Promise<TokenResponse> {
+  const { data } = await request<TokenResponse>('/api/auth/verify-email', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return data
+}
+
+export async function resendCode(payload: ResendCodeRequest): Promise<{ message: string }> {
+  const { data } = await request<{ message: string }>('/api/auth/resend-code', {
     method: 'POST',
     body: JSON.stringify(payload),
   })

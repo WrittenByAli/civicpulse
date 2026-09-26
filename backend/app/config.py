@@ -19,6 +19,16 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
+    RESEND_API_KEY: str = ""
+    FROM_EMAIL: str = "CivicPulse <noreply@civicpulse.app>"
+    FRONTEND_URL: str = "http://localhost"
+
+    OTP_TTL_SECONDS: int = 600          # 10 minutes
+    OTP_RESEND_COOLDOWN_SECONDS: int = 60
+    OTP_MAX_ATTEMPTS: int = 5
+    LOGIN_MAX_FAILURES: int = 10
+    LOGIN_LOCKOUT_SECONDS: int = 900    # 15 minutes
+
     LOG_LEVEL: str = "INFO"
 
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { login as apiLogin } from '../api/client'
+import { AnimatePresence, motion } from 'framer-motion'
+import { login as apiLogin, resendCode as apiResendCode } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { ApiError } from '../api/client'
 
@@ -11,20 +11,53 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [unverified, setUnverified] = useState(false)
+  const [resendInfo, setResendInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setUnverified(false)
+    setResendInfo(null)
     setLoading(true)
     try {
       const { access_token } = await apiLogin({ email, password })
       await login(access_token)
       navigate('/', { replace: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.detail : 'Login failed')
+      if (err instanceof ApiError && err.status === 403) {
+        setUnverified(true)
+        setError(err.detail)
+      } else {
+        setError(err instanceof ApiError ? err.detail : 'Login failed')
+      }
     } finally {
       setLoading(false)
+    }
+  }
+
+  function startCooldown() {
+    setResendCooldown(60)
+    const id = setInterval(() => {
+      setResendCooldown((s) => { if (s <= 1) { clearInterval(id); return 0 } return s - 1 })
+    }, 1000)
+  }
+
+  async function handleResend() {
+    setResendInfo(null)
+    setError(null)
+    setResendLoading(true)
+    try {
+      const res = await apiResendCode({ email })
+      setResendInfo(res.message)
+      startCooldown()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : 'Failed to resend code')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -37,15 +70,45 @@ export function LoginPage() {
       >
         <h1 className="mb-6 text-2xl font-semibold text-zinc-100">Sign in</h1>
 
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400"
-          >
-            {error}
-          </motion.div>
-        )}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-4 overflow-hidden"
+            >
+              <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                {error}
+              </div>
+              {unverified && (
+                <div className="mt-2 flex items-center gap-2">
+                  {resendCooldown > 0 ? (
+                    <span className="text-xs text-zinc-600">Resend in {resendCooldown}s</span>
+                  ) : (
+                    <button
+                      onClick={handleResend}
+                      disabled={resendLoading}
+                      className="text-xs text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors"
+                    >
+                      {resendLoading ? 'Sending…' : 'Resend verification code'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+          {resendInfo && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="mb-4 overflow-hidden rounded-lg border border-blue-500/20
+                         bg-blue-500/10 px-3 py-2 text-sm text-blue-400"
+            >
+              {resendInfo}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
@@ -70,11 +133,7 @@ export function LoginPage() {
               placeholder="••••••••"
             />
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary mt-2"
-          >
+          <button type="submit" disabled={loading} className="btn-primary mt-2">
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>

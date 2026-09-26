@@ -7,9 +7,25 @@ from app.models import ComplaintCategory, ComplaintPriority, ComplaintStatus, Us
 
 
 class SignupRequest(BaseModel):
+    full_name: str = Field(min_length=1, max_length=100)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+    confirm_password: str = Field(min_length=8, max_length=128)
     role: UserRole = UserRole.CITIZEN
+
+
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class ResendCodeRequest(BaseModel):
+    email: EmailStr
+
+
+class SignupPendingResponse(BaseModel):
+    pending: bool = True
+    message: str
 
 
 class LoginRequest(BaseModel):
@@ -26,7 +42,9 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     email: str
+    full_name: str | None
     role: str
+    is_verified: bool
     created_at: datetime
 
 
