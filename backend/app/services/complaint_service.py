@@ -131,10 +131,11 @@ async def list_complaints(
     category: str | None = None,
     priority: str | None = None,
     owner_id: uuid.UUID | None = None,
+    keyword: str | None = None,
 ) -> ComplaintListResponse:
     items, total = await complaint_repo.list_complaints(
         db, page=page, per_page=per_page, status=status, category=category,
-        priority=priority, owner_id=owner_id,
+        priority=priority, owner_id=owner_id, keyword=keyword,
     )
     pages = math.ceil(total / per_page) if total else 0
     return ComplaintListResponse(
