@@ -55,6 +55,7 @@ async def list_complaints(
     category: str | None = None,
     priority: str | None = None,
     owner_id: uuid.UUID | None = None,
+    keyword: str | None = None,
 ) -> tuple[list[Complaint], int]:
     query = select(Complaint)
     if owner_id is not None:
@@ -65,6 +66,11 @@ async def list_complaints(
         query = query.where(Complaint.category == category)
     if priority:
         query = query.where(Complaint.priority == priority)
+    if keyword:
+        like = f"%{keyword}%"
+        query = query.where(
+            Complaint.text.ilike(like) | Complaint.location.ilike(like)
+        )
 
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
