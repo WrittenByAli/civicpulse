@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: rgba(59, 130, 246, 0.3);
+    color: #fafafa;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(9, 9, 11, 0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  @media (min-width: 768px) {
+    .glass {
+      background: rgba(24, 24, 27, 0.6);
+    }
+  }
+
+  .glass-card {
+    background: rgba(24, 24, 27, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.03),
+      0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5
+           text-sm text-zinc-100 placeholder-zinc-500
+           transition-all duration-150
+           focus:border-blue-500/50 focus:outline-none focus:ring-1 focus:ring-blue-500/30;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg
+           bg-blue-600 px-4 py-2.5 text-sm font-medium text-white
+           transition-all duration-150
+           hover:bg-blue-500 active:scale-[0.98]
+           disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg
+           border border-white/[0.08] bg-white/[0.03] px-3 py-1.5
+           text-sm font-medium text-zinc-300
+           transition-all duration-150
+           hover:border-white/[0.12] hover:bg-white/[0.06] hover:text-zinc-100
+           active:scale-[0.98]
+           disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .label-uppercase {
+    @apply text-[11px] font-semibold uppercase tracking-wider text-zinc-500;
+  }
+}
