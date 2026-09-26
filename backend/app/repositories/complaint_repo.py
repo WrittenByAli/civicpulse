@@ -19,8 +19,11 @@ async def create_complaint(
     ai_summary: str | None,
     triaged_by: str | None,
     triage_latency_ms: int | None,
+    ai_confidence: float | None = None,
+    owner_id: uuid.UUID | None = None,
 ) -> Complaint:
     complaint = Complaint(
+        owner_id=owner_id,
         text=text,
         location=location,
         reporter_contact=reporter_contact,
@@ -30,6 +33,7 @@ async def create_complaint(
         ai_summary=ai_summary,
         triaged_by=triaged_by,
         triage_latency_ms=triage_latency_ms,
+        ai_confidence=ai_confidence,
     )
     db.add(complaint)
     await db.flush()
@@ -50,14 +54,23 @@ async def list_complaints(
     status: str | None = None,
     category: str | None = None,
     priority: str | None = None,
+    owner_id: uuid.UUID | None = None,
+    keyword: str | None = None,
 ) -> tuple[list[Complaint], int]:
     query = select(Complaint)
+    if owner_id is not None:
+        query = query.where(Complaint.owner_id == owner_id)
     if status:
         query = query.where(Complaint.status == status)
     if category:
         query = query.where(Complaint.category == category)
     if priority:
         query = query.where(Complaint.priority == priority)
+    if keyword:
+        like = f"%{keyword}%"
+        query = query.where(
+            Complaint.text.ilike(like) | Complaint.location.ilike(like)
+        )
 
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()

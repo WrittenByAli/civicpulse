@@ -9,6 +9,7 @@ class TriageResult:
     ai_summary: str
     triaged_by: str
     latency_ms: int
+    confidence: float = field(default=0.85)
     is_fallback: bool = field(default=False)
 
 

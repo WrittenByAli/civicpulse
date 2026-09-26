@@ -6,8 +6,13 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_redis, get_triage_provider
-from app.models import ComplaintCategory, ComplaintPriority, ComplaintStatus
+from app.dependencies import get_redis, get_triage_provider, require_operator
+from app.models import (
+    ComplaintCategory,
+    ComplaintPriority,
+    ComplaintStatus,
+    User,
+)
 from app.providers.triage import TriageProvider
 from app.schemas import (
     ComplaintCreate,
@@ -36,6 +41,7 @@ async def submit_complaint(
         text=payload.text,
         location=payload.location,
         reporter_contact=payload.reporter_contact,
+        owner_id=None,
     )
     return ComplaintResponse.model_validate(complaint)
 
@@ -58,12 +64,14 @@ async def list_complaints(
     status: ComplaintStatus | None = None,
     category: ComplaintCategory | None = None,
     priority: ComplaintPriority | None = None,
+    keyword: str | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> ComplaintListResponse:
     if page < 1:
         raise HTTPException(status_code=422, detail="page must be >= 1")
     if per_page < 1 or per_page > 100:
         raise HTTPException(status_code=422, detail="per_page must be 1-100")
+
     return await complaint_service.list_complaints(
         db,
         page=page,
@@ -71,6 +79,8 @@ async def list_complaints(
         status=status.value if status else None,
         category=category.value if category else None,
         priority=priority.value if priority else None,
+        keyword=keyword,
+        owner_id=None,
     )
 
 
@@ -79,15 +89,12 @@ async def update_status(
     complaint_id: uuid.UUID,
     payload: StatusUpdate,
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_operator),  # Operators only
 ) -> ComplaintResponse:
     try:
         complaint = await complaint_service.update_status(db, complaint_id, payload.status)
     except LookupError:
-        raise HTTPException(
-            status_code=404, detail="Complaint not found",
-        ) from None
+        raise HTTPException(status_code=404, detail="Complaint not found") from None
     except InvalidTransitionError as exc:
-        raise HTTPException(
-            status_code=409, detail=str(exc),
-        ) from exc
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return ComplaintResponse.model_validate(complaint)

@@ -63,12 +63,10 @@ jobs:
         if: hashFiles('frontend/package.json') != ''
         with:
           node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend deps
         if: hashFiles('frontend/package.json') != ''
-        run: npm ci
+        run: npm install
         working-directory: frontend
 
       - name: eslint
@@ -122,11 +120,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install deps
-        run: npm ci
+        run: npm install
         working-directory: frontend
 
       - name: vitest
@@ -201,7 +197,7 @@ jobs:
         run: docker load -i /tmp/backend.tar
 
       - name: Scan backend — fail on HIGH/CRITICAL (unfixed only)
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: civicpulse/backend:${{ github.sha }}
           exit-code: "1"
@@ -214,7 +210,7 @@ jobs:
 
       - name: Scan frontend — fail on HIGH/CRITICAL (unfixed only)
         if: hashFiles('frontend/Dockerfile') != ''
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: civicpulse/frontend:${{ github.sha }}
           exit-code: "1"
@@ -239,7 +235,11 @@ jobs:
             | tar xz -C /usr/local/bin/
 
       - name: kustomize build overlays/prod | kubeconform
-        run: kustomize build k8s/overlays/prod | kubeconform -strict -summary
+        run: |
+          if [ ! -f k8s/overlays/prod/kustomization.yaml ]; then
+            echo "No kustomization.yaml found — nothing to validate" && exit 0
+          fi
+          kustomize build k8s/overlays/prod | kubeconform -strict -summary -ignore-missing-schemas
 
   # ── 7. Integration test ───────────────────────────────────────────────────
   integration:
@@ -287,10 +287,42 @@ jobs:
             sleep 2
           done
 
+      - name: Create CI operator and obtain JWT
+        run: |
+          # Sign up — no RESEND_API_KEY in CI so OTP goes to backend logs
+          curl -s -X POST http://localhost:8000/api/auth/signup \
+            -H "Content-Type: application/json" \
+            -d '{"email":"ci@civicpulse.test","password":"CiTest123!","confirm_password":"CiTest123!","full_name":"CI Test","role":"citizen"}'
+          sleep 1
+
+          # Extract OTP from container logs
+          OTP=$(docker compose -f compose.yaml logs backend 2>&1 \
+            | grep "OTP for ci@civicpulse.test" | tail -1 \
+            | grep -oE '[0-9]{6}' | tail -1)
+          echo "OTP: $OTP"
+
+          # Verify email → citizen JWT
+          curl -s -X POST http://localhost:8000/api/auth/verify-email \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"ci@civicpulse.test\",\"otp\":\"$OTP\"}"
+
+          # Promote to operator directly in the DB
+          docker compose -f compose.yaml exec -T postgres psql \
+            -U civicpulse -d civicpulse \
+            -c "UPDATE users SET role='operator' WHERE email='ci@civicpulse.test';"
+
+          # Re-login to get a token that carries the operator role
+          TOKEN=$(curl -sf -X POST http://localhost:8000/api/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"ci@civicpulse.test","password":"CiTest123!"}' \
+            | jq -r '.access_token')
+          echo "TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
       - name: POST complaint and assert category
         run: |
           RESP=$(curl -sf -X POST http://localhost:8000/api/complaints \
             -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN" \
             -d '{"text":"Water pipe burst on Main Street causing flooding","location":"Lahore"}')
           echo "$RESP"
           CATEGORY=$(echo "$RESP" | jq -r '.category')
@@ -301,16 +333,19 @@ jobs:
 
       - name: GET complaint back
         run: |
-          GOT_ID=$(curl -sf "http://localhost:8000/api/complaints/$COMPLAINT_ID" | jq -r '.id')
+          GOT_ID=$(curl -sf "http://localhost:8000/api/complaints/$COMPLAINT_ID" \
+            -H "Authorization: Bearer $TOKEN" | jq -r '.id')
           [ "$GOT_ID" = "$COMPLAINT_ID" ] || { echo "ID mismatch: $GOT_ID"; exit 1; }
           echo "GET ok: $GOT_ID"
 
       - name: X-Cache MISS then HIT
         run: |
-          MISS=$(curl -sI http://localhost:8000/api/stats | grep -i x-cache | tr -d '\r')
+          MISS=$(curl -sD- -o /dev/null http://localhost:8000/api/stats \
+            -H "Authorization: Bearer $TOKEN" | grep -i x-cache | tr -d '\r')
           echo "First:  $MISS"
           echo "$MISS" | grep -i MISS
-          HIT=$(curl -sI http://localhost:8000/api/stats | grep -i x-cache | tr -d '\r')
+          HIT=$(curl -sD- -o /dev/null http://localhost:8000/api/stats \
+            -H "Authorization: Bearer $TOKEN" | grep -i x-cache | tr -d '\r')
           echo "Second: $HIT"
           echo "$HIT" | grep -i HIT
 

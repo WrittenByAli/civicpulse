@@ -19,22 +19,22 @@ spec:
                 name: backend
                 port:
                   number: 8000
-          - path: /health
-            pathType: Exact
+          - path: /(health)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: backend
                 port:
                   number: 8000
-          - path: /ready
-            pathType: Exact
+          - path: /(ready)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: backend
                 port:
                   number: 8000
-          - path: /metrics
-            pathType: Exact
+          - path: /(metrics)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: backend

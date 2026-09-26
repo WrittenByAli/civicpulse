@@ -26,16 +26,32 @@ Seed data loads automatically on first start.
 
 ```mermaid
 graph TD
-    User["Citizen / Operator"] -->|HTTP| FE["Frontend\nReact + Vite → nginx"]
-    FE -->|/api proxied| BE["Backend\nFastAPI + Pydantic v2"]
-    BE --> PG["PostgreSQL 16\nStatefulSet + PVC"]
-    BE --> RD["Redis 7\ncache + rate limiter"]
-    BE --> TP["TriageProvider\ninterface"]
-    TP -->|TRIAGE_PROVIDER=llm| LLM["Groq / Gemini\nfree tier · JSON mode"]
-    TP -->|TRIAGE_PROVIDER=ollama| OL["Ollama\nqwen2.5:1.5b · offline"]
-    TP -->|fallback| RB["RuleBasedTriage\ndeterministic · never fails"]
-    TP -->|TRIAGE_PROVIDER=simulated| SIM["SimulatedTriage\nCI · no network"]
-    LLM -->|timeout · 429 · bad JSON| RB
+    User["Citizen / Operator"]
+    User -->|HTTP| edge
+
+    subgraph edge["docker network: edge"]
+        FE["frontend · React + Vite → nginx\nmulti-stage image"]
+        FE -->|"/api proxied"| BE["backend · FastAPI + Pydantic"]
+    end
+
+    BE --> internal
+    BE --> TP
+
+    subgraph internal["docker network: internal (internal: true)"]
+        PG["postgres:16 · volume pgdata"]
+        RD["redis:7 · cache + rate limiter"]
+    end
+
+    subgraph TP["TriageProvider (interface)"]
+        direction TB
+        DEFAULT["default"]
+        CI_PATH["CI"]
+    end
+
+    DEFAULT -->|TRIAGE_PROVIDER=llm| LLM["Groq or Gemini · free tier · JSON mode"]
+    CI_PATH -->|TRIAGE_PROVIDER=simulated| SIM["SimulatedTriage · deterministic fake"]
+
+    LLM -->|"timeout · 429 · bad JSON"| RB["RuleBasedTriage · fallback"]
 ```
 
 ## API

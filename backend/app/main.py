@@ -3,6 +3,7 @@ import logging
 import signal
 
 from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -11,7 +12,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from app.config import settings
 from app.logging_config import configure_logging
 from app.middleware import RateLimitMiddleware, RequestIdMiddleware
-from app.routes import complaints, health, meta, stats
+from app.routes import auth, complaints, health, meta, stats
 
 configure_logging(settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
@@ -40,9 +41,12 @@ app = FastAPI(
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError,
 ) -> JSONResponse:
+    # jsonable_encoder mirrors FastAPI's default handler: error ctx can hold a
+    # raw ValueError (from a field/model validator), which plain json.dumps
+    # cannot serialize.
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
-        content={"detail": exc.errors()},
+        content={"detail": jsonable_encoder(exc.errors())},
     )
 
 app.add_middleware(
@@ -55,6 +59,7 @@ app.add_middleware(RateLimitMiddleware)
 app.add_middleware(RequestIdMiddleware)
 
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(complaints.router)
 app.include_router(stats.router)
 app.include_router(meta.router)
