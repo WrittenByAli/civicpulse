@@ -10,6 +10,15 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - internal
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.10'
+          memory: 256M
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U civicpulse"]
       interval: 5s
@@ -23,6 +32,15 @@ services:
       - redis_data:/data
     networks:
       - internal
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.20'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -56,6 +74,15 @@ services:
     networks:
       - edge
       - internal
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,6 +120,14 @@ services:
     networks:
       - internal
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.00'
+          memory: 4G
+        reservations:
+          cpus: '0.50'
+          memory: 1G
     healthcheck:
       test: ["CMD-SHELL", "ollama list || exit 1"]
       interval: 30s
@@ -107,6 +142,15 @@ services:
       - "80:8080"
     networks:
       - edge
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.20'
+          memory: 64M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
     depends_on:
       backend:
         condition: service_healthy
