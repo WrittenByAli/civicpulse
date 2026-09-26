@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_optional_user, get_redis, get_triage_provider, require_operator
 from app.models import (
-    Complaint,
     ComplaintCategory,
     ComplaintPriority,
     ComplaintStatus,
