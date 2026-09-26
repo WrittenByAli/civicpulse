@@ -8,6 +8,12 @@ labels:
       app.kubernetes.io/part-of: civicpulse
     includeSelectors: false
 
+images:
+  - name: civicpulse-backend
+    newTag: "0.1.0"
+  - name: civicpulse-frontend
+    newTag: "0.1.0"
+
 resources:
   - namespace.yaml
   - configmap.yaml
