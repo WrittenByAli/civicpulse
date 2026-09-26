@@ -43,11 +43,12 @@ async function request<T>(
   init?: RequestInit,
 ): Promise<{ data: T; headers: Headers }> {
   const token = getStoredToken()
-  const authHeader = token ? { Authorization: `Bearer ${token}` } : {}
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', ...authHeader, ...init?.headers },
-    ...init,
-  })
+  const headers = new Headers({ 'Content-Type': 'application/json' })
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  if (init?.headers) {
+    new Headers(init.headers as HeadersInit).forEach((v, k) => headers.set(k, v))
+  }
+  const res = await fetch(path, { ...init, headers })
   if (!res.ok) {
     let detail = `HTTP ${res.status}`
     try {
