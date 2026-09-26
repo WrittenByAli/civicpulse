@@ -23,6 +23,7 @@ _OUTCOME_STORE_KEY = "meta:outcomes"
 _OUTCOME_MAX = 20
 _CACHE_HIT_KEY = "meta:cache_hits"
 _CACHE_MISS_KEY = "meta:cache_misses"
+_STATS_CACHE_KEY = "stats:global"
 
 
 def _triage_cache_key(text: str, location: str) -> str:
@@ -112,6 +113,8 @@ async def create_complaint(
         ai_confidence=ai_confidence,
         owner_id=owner_id,
     )
+    # Invalidate cached stats so the new complaint appears immediately
+    await redis.delete(_STATS_CACHE_KEY)
     return complaint
 
 
