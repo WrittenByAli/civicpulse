@@ -28,19 +28,22 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
 }))
 
-class MockApiError extends Error {
-  status: number
-  detail: string
-  constructor(status: number, detail: string) {
-    super(detail)
-    this.name = 'ApiError'
-    this.status = status
-    this.detail = detail
+// vi.mock is hoisted above the file body, so anything its factory references must
+// be created with vi.hoisted() — a plain top-level class/const is still in the
+// temporal dead zone when the hoisted factory runs.
+const { MockApiError, mockSubmitComplaint, mockGetStats } = vi.hoisted(() => {
+  class MockApiError extends Error {
+    status: number
+    detail: string
+    constructor(status: number, detail: string) {
+      super(detail)
+      this.name = 'ApiError'
+      this.status = status
+      this.detail = detail
+    }
   }
-}
-
-const mockSubmitComplaint = vi.fn()
-const mockGetStats = vi.fn()
+  return { MockApiError, mockSubmitComplaint: vi.fn(), mockGetStats: vi.fn() }
+})
 
 vi.mock('../src/api/client', () => ({
   submitComplaint: (...args: unknown[]) => mockSubmitComplaint(...args),
@@ -153,9 +156,10 @@ describe('StatsPage', () => {
   it('renders total complaint count after load', async () => {
     mockGetStats.mockResolvedValueOnce({ data: STATS_PAYLOAD, cacheHeader: null })
     render(<StatsPage />)
-    await waitFor(() => {
-      expect(screen.getByText('42')).toBeInTheDocument()
-    })
+    // "42" also appears in both donut centers (category and priority sums both
+    // total 42), so anchor on the unique "Total Complaints" label instead.
+    const label = await screen.findByText('Total Complaints')
+    expect(label.previousElementSibling).toHaveTextContent('42')
   })
 
   it('shows X-Cache HIT badge when cacheHeader is HIT', async () => {
