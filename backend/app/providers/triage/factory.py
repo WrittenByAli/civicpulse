@@ -10,7 +10,7 @@ def get_triage_provider() -> TriageProvider:
 
     provider = settings.TRIAGE_PROVIDER.lower()
     if provider == "llm":
-        return LLMTriage(api_key=settings.GROQ_API_KEY)
+        return LLMTriage(api_key=settings.GROQ_API_KEY, model=settings.GROQ_MODEL)
     if provider == "ollama":
         return OllamaTriage(base_url=settings.OLLAMA_BASE_URL, model=settings.OLLAMA_MODEL)
     if provider == "simulated":

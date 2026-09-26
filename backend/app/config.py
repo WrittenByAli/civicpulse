@@ -9,6 +9,7 @@ class Settings(BaseSettings):
 
     TRIAGE_PROVIDER: str = "rules"
     GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
     OLLAMA_BASE_URL: str = "http://ollama:11434"
     OLLAMA_MODEL: str = "qwen2.5:1.5b"
 
