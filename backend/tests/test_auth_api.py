@@ -17,8 +17,9 @@ async def test_signup_returns_pending(client):
     assert resp.status_code in (200, 201, 409)
 
 
+# The app maps every RequestValidationError to 400 (main.py), not FastAPI's 422.
 @pytest.mark.asyncio
-async def test_signup_password_mismatch_returns_422(client):
+async def test_signup_password_mismatch_returns_400(client):
     resp = await client.post(
         "/api/auth/signup",
         json={
@@ -29,11 +30,11 @@ async def test_signup_password_mismatch_returns_422(client):
             "role": "citizen",
         },
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_signup_short_password_returns_422(client):
+async def test_signup_short_password_returns_400(client):
     resp = await client.post(
         "/api/auth/signup",
         json={
@@ -43,11 +44,11 @@ async def test_signup_short_password_returns_422(client):
             "confirm_password": "short",
         },
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_signup_invalid_email_returns_422(client):
+async def test_signup_invalid_email_returns_400(client):
     resp = await client.post(
         "/api/auth/signup",
         json={
@@ -57,16 +58,18 @@ async def test_signup_invalid_email_returns_422(client):
             "confirm_password": "ValidPass123!",
         },
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_login_invalid_credentials_returns_401(client):
+async def test_login_invalid_credentials_rejected(client):
+    # Unknown account is rejected: 401 for a plain miss, or 403 when the email
+    # still has a pending (unverified) signup.
     resp = await client.post(
         "/api/auth/login",
         json={"email": "nobody@example.com", "password": "wrongpassword"},
     )
-    assert resp.status_code == 401
+    assert resp.status_code in (401, 403)
 
 
 @pytest.mark.asyncio
@@ -80,18 +83,18 @@ async def test_get_me_returns_authenticated_user(client):
 
 
 @pytest.mark.asyncio
-async def test_verify_otp_invalid_format_returns_422(client):
+async def test_verify_otp_invalid_format_returns_400(client):
     resp = await client.post(
-        "/api/auth/verify",
+        "/api/auth/verify-email",
         json={"email": "test@example.com", "otp": "abc"},
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_verify_otp_wrong_code_returns_400_or_404(client):
+async def test_verify_otp_wrong_code_returns_400(client):
     resp = await client.post(
-        "/api/auth/verify",
+        "/api/auth/verify-email",
         json={"email": "nobody@example.com", "otp": "000000"},
     )
-    assert resp.status_code in (400, 404)
+    assert resp.status_code == 400

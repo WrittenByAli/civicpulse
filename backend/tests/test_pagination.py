@@ -59,15 +59,16 @@ async def test_filter_by_priority_high(client):
 
 
 @pytest.mark.asyncio
-async def test_invalid_category_returns_422(client):
+async def test_invalid_category_returns_400(client):
+    # main.py maps RequestValidationError to 400 (not FastAPI's default 422)
     resp = await client.get("/api/complaints?category=notacategory")
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_invalid_priority_returns_422(client):
+async def test_invalid_priority_returns_400(client):
     resp = await client.get("/api/complaints?priority=urgent")
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio
