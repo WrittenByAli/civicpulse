@@ -48,7 +48,9 @@ async def test_rules_triage_electricity_keyword():
 @pytest.mark.asyncio
 async def test_rules_triage_sanitation_keyword():
     provider = RuleBasedTriage()
-    result = await provider.triage("Garbage has not been collected for a week and the area stinks", "Lahore")
+    result = await provider.triage(
+        "Garbage has not been collected for a week and the area stinks", "Lahore"
+    )
     assert result.category == "sanitation"
 
 
@@ -62,28 +64,36 @@ async def test_rules_triage_roads_keyword():
 @pytest.mark.asyncio
 async def test_rules_triage_streetlights_keyword():
     provider = RuleBasedTriage()
-    result = await provider.triage("The streetlight on our block has been broken for two weeks", "Lahore")
+    result = await provider.triage(
+        "The streetlight on our block has been broken for two weeks", "Lahore"
+    )
     assert result.category == "streetlights"
 
 
 @pytest.mark.asyncio
 async def test_rules_triage_other_category():
     provider = RuleBasedTriage()
-    result = await provider.triage("I need to register a general concern about the neighbourhood", "Lahore")
+    result = await provider.triage(
+        "I need to register a general concern about the neighbourhood", "Lahore"
+    )
     assert result.category == "other"
 
 
 @pytest.mark.asyncio
 async def test_rules_triage_high_priority():
     provider = RuleBasedTriage()
-    result = await provider.triage("Water pipe burst and flooding the entire street right now", "Lahore")
+    result = await provider.triage(
+        "Water pipe burst and flooding the entire street right now", "Lahore"
+    )
     assert result.priority == "high"
 
 
 @pytest.mark.asyncio
 async def test_rules_triage_low_priority():
     provider = RuleBasedTriage()
-    result = await provider.triage("Minor crack in the road, has been like this for months", "Lahore")
+    result = await provider.triage(
+        "Minor crack in the road, has been like this for months", "Lahore"
+    )
     assert result.priority == "low"
 
 

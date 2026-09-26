@@ -7,7 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_optional_user, get_redis, get_triage_provider, require_operator
-from app.models import Complaint, ComplaintCategory, ComplaintPriority, ComplaintStatus, User, UserRole
+from app.models import (
+    Complaint,
+    ComplaintCategory,
+    ComplaintPriority,
+    ComplaintStatus,
+    User,
+    UserRole,
+)
 from app.providers.triage import TriageProvider
 from app.schemas import (
     ComplaintCreate,
@@ -32,8 +39,10 @@ async def submit_complaint(
 ) -> ComplaintResponse:
     # Citizens must be authenticated; operators may submit optionally
     if current_user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
-    owner_id = current_user.id if current_user.role == UserRole.CITIZEN.value else current_user.id
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+        )
+    owner_id = current_user.id
     complaint = await complaint_service.create_complaint(
         db,
         redis,
@@ -53,7 +62,9 @@ async def get_complaint(
     current_user: User | None = Depends(get_optional_user),
 ) -> ComplaintResponse:
     if current_user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+        )
     complaint = await complaint_service.get_complaint(db, complaint_id)
     if complaint is None:
         raise HTTPException(status_code=404, detail="Complaint not found")
@@ -74,7 +85,9 @@ async def list_complaints(
     current_user: User | None = Depends(get_optional_user),
 ) -> ComplaintListResponse:
     if current_user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+        )
     if page < 1:
         raise HTTPException(status_code=422, detail="page must be >= 1")
     if per_page < 1 or per_page > 100:

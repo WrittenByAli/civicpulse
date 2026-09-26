@@ -4,12 +4,15 @@ import pytest
 from app.main import app
 from app.providers.triage.base import TriageResult
 
+_VALID_CATEGORIES = ["water", "electricity", "sanitation", "roads", "streetlights", "other"]
+_VALID_PRIORITIES = ["high", "normal", "low"]
+
 
 @pytest.mark.asyncio
 async def test_create_complaint_returns_201(client):
     resp = await client.post(
         "/api/complaints",
-        json={"text": "Water pipe burst on Main Street causing flooding", "location": "Main Street, Lahore"},
+        json={"text": "Water pipe burst on Main Street causing flooding", "location": "Lahore"},
     )
     assert resp.status_code == 201
     data = resp.json()
@@ -38,7 +41,7 @@ async def test_create_complaint_text_too_short_returns_400(client):
 async def test_get_complaint_returns_correct_id(client):
     create_resp = await client.post(
         "/api/complaints",
-        json={"text": "Streetlight not working near my house for days", "location": "DHA Phase 5, Lahore"},
+        json={"text": "Streetlight not working near my house for days", "location": "DHA Lahore"},
     )
     complaint_id = create_resp.json()["id"]
     get_resp = await client.get(f"/api/complaints/{complaint_id}")
@@ -57,7 +60,7 @@ async def test_list_complaints_returns_paginated(client):
     for i in range(3):
         await client.post(
             "/api/complaints",
-            json={"text": f"Garbage not collected in our area for many days number {i}", "location": "Gulberg, Lahore"},
+            json={"text": f"Garbage not collected in our area for many days {i}", "location": "GL"},
         )
     resp = await client.get("/api/complaints?page=1&per_page=2")
     assert resp.status_code == 200
@@ -71,7 +74,7 @@ async def test_list_complaints_returns_paginated(client):
 async def test_status_transition_open_to_in_progress(client):
     create_resp = await client.post(
         "/api/complaints",
-        json={"text": "Power outage in Model Town since last night with no update", "location": "Model Town, Lahore"},
+        json={"text": "Power outage in Model Town since last night, no update", "location": "LHR"},
     )
     cid = create_resp.json()["id"]
     patch_resp = await client.patch(
@@ -86,7 +89,7 @@ async def test_status_transition_open_to_in_progress(client):
 async def test_invalid_status_transition_returns_409(client):
     create_resp = await client.post(
         "/api/complaints",
-        json={"text": "Pothole on Jail Road causing accidents every day", "location": "Jail Road, Lahore"},
+        json={"text": "Pothole on Jail Road causing accidents every day", "location": "Lahore"},
     )
     cid = create_resp.json()["id"]
     patch_resp = await client.patch(
@@ -111,15 +114,15 @@ async def test_prompt_injection_still_creates_complaint(client):
     )
     assert resp.status_code == 201
     data = resp.json()
-    assert data["category"] in ["water", "electricity", "sanitation", "roads", "streetlights", "other"]
-    assert data["priority"] in ["high", "normal", "low"]
+    assert data["category"] in _VALID_CATEGORIES
+    assert data["priority"] in _VALID_PRIORITIES
     assert data["ai_summary"] is not None
     assert len(data["ai_summary"]) <= 140
 
 
 @pytest.mark.asyncio
 async def test_fallback_on_provider_failure(client):
-    """When the primary provider raises an exception, service falls back to RuleBased and returns 201."""
+    """A failing provider is caught by the service — response is still 201."""
     from app.dependencies import get_triage_provider
 
     class _FailingProvider:
@@ -141,8 +144,8 @@ async def test_fallback_on_provider_failure(client):
         assert resp.status_code == 201
         data = resp.json()
         assert data["triaged_by"] == "rules:fallback"
-        assert data["category"] in ["water", "electricity", "sanitation", "roads", "streetlights", "other"]
-        assert data["priority"] in ["high", "normal", "low"]
+        assert data["category"] in _VALID_CATEGORIES
+        assert data["priority"] in _VALID_PRIORITIES
     finally:
         app.dependency_overrides.pop(get_triage_provider, None)
 
@@ -152,7 +155,10 @@ async def test_complaint_has_ai_fields(client):
     """Complaint response includes all required AI-related fields."""
     resp = await client.post(
         "/api/complaints",
-        json={"text": "Broken water pipe leaking outside our house for two days", "location": "Street 12, Sector B"},
+        json={
+            "text": "Broken water pipe leaking outside our house for two days",
+            "location": "Lahore",
+        },
     )
     assert resp.status_code == 201
     data = resp.json()

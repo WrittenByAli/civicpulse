@@ -105,7 +105,9 @@ async def _send(to: str, subject: str, html: str) -> None:
 
     # ── 2. Resend REST API ───────────────────────────────────────────────────
     if not settings.RESEND_API_KEY:
-        logger.warning("[DEV] No email backend configured — email to %s not sent. Subject: %s", to, subject)
+        logger.warning(
+            "[DEV] No email backend configured — email to %s not sent. Subject: %s", to, subject
+        )
         return
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(

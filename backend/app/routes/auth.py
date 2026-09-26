@@ -134,7 +134,9 @@ async def verify_email(
     attempts_raw = await redis.get(_otp_attempts_key(email))
     attempts = int(attempts_raw) if attempts_raw else 0
     if attempts >= settings.OTP_MAX_ATTEMPTS:
-        raise HTTPException(status_code=429, detail="Too many incorrect attempts. Request a new code.")
+        raise HTTPException(
+            status_code=429, detail="Too many incorrect attempts. Request a new code."
+        )
 
     stored_otp = await redis.get(_otp_key(email))
     if stored_otp is None:
@@ -198,12 +200,22 @@ async def verify_email(
         pipe = redis.pipeline()
         pipe.set(
             _op_request_key(approval_token),
-            json.dumps({"user_id": str(user.id), "email": email, "full_name": pending["full_name"], "action": "approve"}),
+            json.dumps({
+                "user_id": str(user.id),
+                "email": email,
+                "full_name": pending["full_name"],
+                "action": "approve",
+            }),
             ex=ttl,
         )
         pipe.set(
             _op_request_key(reject_token),
-            json.dumps({"user_id": str(user.id), "email": email, "full_name": pending["full_name"], "action": "reject"}),
+            json.dumps({
+                "user_id": str(user.id),
+                "email": email,
+                "full_name": pending["full_name"],
+                "action": "reject",
+            }),
             ex=ttl,
         )
         await pipe.execute()
@@ -237,8 +249,11 @@ async def handle_operator_request(
     raw = await redis.get(_op_request_key(token))
     if raw is None:
         return Response(
-            content=_result_page("Link expired or already used",
-                                 "This approval link has already been used or has expired.", error=True),
+            content=_result_page(
+                "Link expired or already used",
+                "This approval link has already been used or has expired.",
+                error=True,
+            ),
             media_type="text/html",
         )
 
@@ -271,7 +286,8 @@ async def handle_operator_request(
         return Response(
             content=_result_page(
                 "Request rejected",
-                f"{data['full_name']} ({data['email']}) has been notified that their request was declined.",
+                f"{data['full_name']} ({data['email']}) has been notified "
+                "that their request was declined.",
                 warning=True,
             ),
             media_type="text/html",
@@ -310,11 +326,16 @@ async def resend_code(
 
     if await redis.exists(_otp_resend_cooldown_key(email)):
         ttl = await redis.ttl(_otp_resend_cooldown_key(email))
-        raise HTTPException(status_code=429, detail=f"Please wait {ttl} second(s) before requesting a new code.")
+        raise HTTPException(
+            status_code=429,
+            detail=f"Please wait {ttl} second(s) before requesting a new code.",
+        )
 
     pending_raw = await redis.get(_pending_key(email))
     if pending_raw is None:
-        raise HTTPException(status_code=400, detail="No pending signup for this email. Please sign up again.")
+        raise HTTPException(
+            status_code=400, detail="No pending signup for this email. Please sign up again."
+        )
     pending = json.loads(pending_raw)
 
     otp = _generate_otp()
@@ -342,7 +363,9 @@ async def login(
 
     fail_count_raw = await redis.get(fail_key)
     if fail_count_raw and int(fail_count_raw) >= settings.LOGIN_MAX_FAILURES:
-        raise HTTPException(status_code=429, detail="Too many failed attempts. Try again in 15 minutes.")
+        raise HTTPException(
+            status_code=429, detail="Too many failed attempts. Try again in 15 minutes."
+        )
 
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
