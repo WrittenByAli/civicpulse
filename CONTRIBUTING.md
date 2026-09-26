@@ -62,3 +62,13 @@ Examples:
 - [ ] No `:latest` image tags in k8s manifests
 - [ ] `.env` is not staged
 - [ ] PR description explains *why*, not just *what*
+
+## Test coverage targets
+
+| Area | Minimum | Command |
+|------|---------|---------|
+| Backend (unit + integration) | 70 % | `pytest --cov=app --cov-report=term-missing` |
+| Frontend (component) | 60 % | `npm test -- --run --coverage` |
+
+Run `check_submission.py` from the repo root before opening a PR — it validates `:latest`
+tags, `CHANGE_ME` placeholders, and the presence of required docs in one pass.
