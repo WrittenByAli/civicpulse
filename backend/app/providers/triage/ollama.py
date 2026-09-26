@@ -77,13 +77,20 @@ class OllamaTriage:
         for attempt in range(_ALLOWED_RETRIES + 1):
             if attempt > 0:
                 delay = 0.5 + random.random() * 0.5
-                logger.info("Ollama triage retry %d/%d after %.2fs", attempt, _ALLOWED_RETRIES, delay)
+                logger.info(
+                    "Ollama triage retry %d/%d after %.2fs", attempt, _ALLOWED_RETRIES, delay
+                )
                 await asyncio.sleep(delay)
             try:
                 async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
                     resp = await client.post(
                         f"{self._base_url}/api/generate",
-                        json={"model": self._model, "prompt": prompt, "stream": False, "format": "json"},
+                        json={
+                            "model": self._model,
+                            "prompt": prompt,
+                            "stream": False,
+                            "format": "json",
+                        },
                     )
                 if resp.status_code == 400:
                     raise ValueError(f"Ollama 400 — not retrying: {resp.text[:200]}")
@@ -102,7 +109,9 @@ class OllamaTriage:
                 )
             except (httpx.TimeoutException, ValidationError) as exc:
                 last_exc = exc
-                logger.warning("Ollama attempt %d failed (%s: %s)", attempt + 1, type(exc).__name__, exc)
+                logger.warning(
+                    "Ollama attempt %d failed (%s: %s)", attempt + 1, type(exc).__name__, exc
+                )
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code not in _RETRYABLE_STATUS:
                     last_exc = exc
@@ -115,7 +124,11 @@ class OllamaTriage:
 
         logger.warning(
             "Triage fallback triggered",
-            extra={"provider": "llm:ollama", "error_class": type(last_exc).__name__, "error": str(last_exc)},
+            extra={
+                "provider": "llm:ollama",
+                "error_class": type(last_exc).__name__,
+                "error": str(last_exc),
+            },
         )
         fallback_counter.labels(original_provider="llm:ollama").inc()
         result = await _FALLBACK.triage(text, location)
