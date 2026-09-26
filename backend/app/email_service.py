@@ -52,7 +52,7 @@ def _wrap(body_html: str) -> str:
         <tr>
           <td style="padding-top:24px;border-top:1px solid #e4e4e7;margin-top:24px">
             <p style="color:#71717a;font-size:11px;margin:0">
-              You received this email because an account was created with this address on CivicPulse.
+              You received this email because an account was created with this address.
               If you did not sign up, you can safely ignore this email.
             </p>
           </td>

@@ -56,6 +56,8 @@ ignore = [
 "app/routes/health.py" = ["BLE001"]
 # Session context manager: rollback on any error, then re-raise
 "app/database.py" = ["BLE001"]
+# SMTP send wraps many exception types (SMTPException, SSL, socket, etc.)
+"app/email_service.py" = ["BLE001"]
 
 [tool.mypy]
 python_version = "3.12"
