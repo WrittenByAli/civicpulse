@@ -8,6 +8,8 @@ RUN npm run build
 
 # Stage 2 — serve with nginx; Node toolchain never reaches the final image
 FROM nginx:alpine AS runtime
+# Upgrade libexpat to patch CVE-2026-93990 (HIGH — fixed in 2.8.5-r0)
+RUN apk upgrade --no-cache libexpat
 RUN addgroup -S civicpulse && adduser -S -G civicpulse civicpulse \
     && chown -R civicpulse:civicpulse /var/cache/nginx /var/log/nginx /etc/nginx/conf.d \
     && touch /var/run/nginx.pid && chown civicpulse:civicpulse /var/run/nginx.pid
