@@ -1,7 +1,8 @@
+import re
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.models import ComplaintCategory, ComplaintPriority, ComplaintStatus, UserRole
 
@@ -12,6 +13,12 @@ class SignupRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     confirm_password: str = Field(min_length=8, max_length=128)
     role: UserRole = UserRole.CITIZEN
+
+    @model_validator(mode="after")
+    def passwords_match(self) -> "SignupRequest":
+        if self.password != self.confirm_password:
+            raise ValueError("passwords do not match")
+        return self
 
 
 class VerifyEmailRequest(BaseModel):
@@ -48,10 +55,31 @@ class UserResponse(BaseModel):
     created_at: datetime
 
 
+_PHONE_RE = re.compile(r"^[+\d][\d\s\-().]{5,49}$")
+
+
 class ComplaintCreate(BaseModel):
     text: str = Field(min_length=10, max_length=2000)
     location: str = Field(min_length=3, max_length=200)
-    reporter_contact: str | None = Field(None, max_length=200)
+    reporter_contact: str | None = Field(None, max_length=50)
+
+    @field_validator("text", "location", mode="before")
+    @classmethod
+    def strip_and_no_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("field must not be blank or whitespace only")
+        return v
+
+    @field_validator("reporter_contact", mode="before")
+    @classmethod
+    def validate_phone(cls, v: str | None) -> str | None:
+        if v is None or v == "":
+            return None
+        v = v.strip()
+        if not _PHONE_RE.match(v):
+            raise ValueError("reporter_contact must be a valid phone number")
+        return v
 
 
 class StatusUpdate(BaseModel):

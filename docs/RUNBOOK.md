@@ -83,6 +83,28 @@ Every log line carries `request_id` (from `X-Request-ID` header), `level`, `time
 kubectl logs -l app=backend -n civicpulse | jq 'select(.level=="WARNING")'
 ```
 
+## Network policy debugging
+
+If pods cannot reach each other after applying the k8s manifests, the NetworkPolicy deny-all
+default is the first suspect.
+
+```bash
+# Verify policies are applied
+kubectl get networkpolicy -n civicpulse
+
+# Test backend → postgres connectivity from inside backend pod
+kubectl exec -n civicpulse deploy/backend -- \
+  python -c "import socket; socket.connect(('postgres', 5432)); print('OK')"
+
+# Temporarily allow all traffic for debugging (revert before merging)
+kubectl delete networkpolicy deny-all-default -n civicpulse
+```
+
+DNS (UDP 53) and HTTPS (TCP 443) egress are explicitly allowed for backend so Groq/Resend
+API calls and Nominatim geocoding from the frontend work without extra policy rules.
+
+---
+
 ## When triage starts failing
 
 1. Check `/api/meta/providers` — look at the last 20 outcomes for `fallback: true` rate

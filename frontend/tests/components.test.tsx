@@ -1,8 +1,23 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import React from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import { SubmitPage } from '../src/pages/SubmitPage'
 import { StatsPage } from '../src/pages/StatsPage'
+
+// Mock react-leaflet so tests don't need a real DOM with canvas/map tiles
+vi.mock('react-leaflet', () => ({
+  MapContainer: ({ children }: { children: React.ReactNode }) =>
+    React.createElement('div', { 'data-testid': 'map-container' }, children),
+  TileLayer: () => null,
+  Marker: () => null,
+  useMapEvents: () => null,
+}))
+vi.mock('leaflet', () => ({
+  default: { divIcon: vi.fn(() => ({})) },
+  divIcon: vi.fn(() => ({})),
+}))
+vi.mock('leaflet/dist/leaflet.css', () => ({}))
 
 vi.mock('framer-motion', () => ({
   motion: new Proxy({}, {
@@ -53,18 +68,18 @@ afterEach(() => {
 
 describe('SubmitPage', () => {
   it('renders the description and location fields', () => {
-    render(<SubmitPage />)
+    render(<MemoryRouter><SubmitPage /></MemoryRouter>)
     expect(screen.getByLabelText(/description/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/location/i)).toBeInTheDocument()
   })
 
   it('submit button is disabled when fields are empty', () => {
-    render(<SubmitPage />)
+    render(<MemoryRouter><SubmitPage /></MemoryRouter>)
     expect(screen.getByRole('button', { name: /submit complaint/i })).toBeDisabled()
   })
 
   it('submit button enables when both fields meet minimum length', () => {
-    render(<SubmitPage />)
+    render(<MemoryRouter><SubmitPage /></MemoryRouter>)
     fireEvent.change(screen.getByLabelText(/description/i), {
       target: { value: 'Water pipe burst near the main junction' },
     })
@@ -92,7 +107,7 @@ describe('SubmitPage', () => {
     }
     mockSubmitComplaint.mockResolvedValueOnce(complaint)
 
-    render(<SubmitPage />)
+    render(<MemoryRouter><SubmitPage /></MemoryRouter>)
     fireEvent.change(screen.getByLabelText(/description/i), {
       target: { value: complaint.text },
     })
@@ -102,7 +117,7 @@ describe('SubmitPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /submit complaint/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('Complaint Triaged')).toBeInTheDocument()
+      expect(screen.getByText(/complaint submitted successfully/i)).toBeInTheDocument()
     })
     expect(screen.getByText('water')).toBeInTheDocument()
     expect(screen.getByText('Burst water main causing flooding')).toBeInTheDocument()
@@ -111,7 +126,7 @@ describe('SubmitPage', () => {
   it('shows error message when submission fails', async () => {
     mockSubmitComplaint.mockRejectedValueOnce(new MockApiError(422, 'text too short'))
 
-    render(<SubmitPage />)
+    render(<MemoryRouter><SubmitPage /></MemoryRouter>)
     fireEvent.change(screen.getByLabelText(/description/i), {
       target: { value: 'Water pipe burst near the main junction' },
     })

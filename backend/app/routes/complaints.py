@@ -64,6 +64,7 @@ async def list_complaints(
     status: ComplaintStatus | None = None,
     category: ComplaintCategory | None = None,
     priority: ComplaintPriority | None = None,
+    keyword: str | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> ComplaintListResponse:
     if page < 1:
@@ -78,6 +79,7 @@ async def list_complaints(
         status=status.value if status else None,
         category=category.value if category else None,
         priority=priority.value if priority else None,
+        keyword=keyword,
         owner_id=None,
     )
 

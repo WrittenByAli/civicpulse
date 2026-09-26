@@ -1,4 +1,4 @@
-# Production compose file — uses pre-built images, no build: keys,
+# Production compose file — uses pre-built images only, no local builds,
 # no published ports on database or cache.
 # Usage: IMAGE_TAG=<sha> docker compose -f compose.prod.yaml up -d
 
