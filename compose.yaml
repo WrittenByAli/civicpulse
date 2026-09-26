@@ -104,3 +104,4 @@ networks:
     driver: bridge
   internal:
     driver: bridge
+    internal: true
