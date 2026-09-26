@@ -5,6 +5,20 @@ import { MemoryRouter } from 'react-router-dom'
 import { SubmitPage } from '../src/pages/SubmitPage'
 import { StatsPage } from '../src/pages/StatsPage'
 
+// Mock react-leaflet so tests don't need a real DOM with canvas/map tiles
+vi.mock('react-leaflet', () => ({
+  MapContainer: ({ children }: { children: React.ReactNode }) =>
+    React.createElement('div', { 'data-testid': 'map-container' }, children),
+  TileLayer: () => null,
+  Marker: () => null,
+  useMapEvents: () => null,
+}))
+vi.mock('leaflet', () => ({
+  default: { divIcon: vi.fn(() => ({})) },
+  divIcon: vi.fn(() => ({})),
+}))
+vi.mock('leaflet/dist/leaflet.css', () => ({}))
+
 vi.mock('framer-motion', () => ({
   motion: new Proxy({}, {
     get: (_target, tag: string) =>
