@@ -84,9 +84,7 @@ async def list_complaints(
     current_user: User | None = Depends(get_optional_user),
 ) -> ComplaintListResponse:
     if current_user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
-        )
+        raise HTTPException(status_code=401, detail="Authentication required")
     if page < 1:
         raise HTTPException(status_code=422, detail="page must be >= 1")
     if per_page < 1 or per_page > 100:

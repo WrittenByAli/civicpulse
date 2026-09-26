@@ -145,7 +145,7 @@ async def verify_email(
             detail="No pending verification for this email or code has expired.",
         )
 
-    if not secrets.compare_digest(stored_otp, payload.otp):
+    if not secrets.compare_digest(str(stored_otp), payload.otp):
         new_attempts = await redis.incr(_otp_attempts_key(email))
         ttl = await redis.ttl(_otp_key(email))
         if ttl > 0:
