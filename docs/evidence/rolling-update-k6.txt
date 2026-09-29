@@ -1,0 +1,53 @@
+== Before rollout: 17:46:54Z
+NAME                       READY   STATUS    RESTARTS   AGE
+backend-59dc4c7dfb-bhmhr   1/1     Running   0          167m
+backend-59dc4c7dfb-k4rw7   1/1     Running   0          7s
+backend-59dc4c7dfb-s4t28   1/1     Running   0          7s
+
+== Triggering: kubectl rollout restart deployment/backend -n civicpulse  at 17:47:28Z
+deployment.apps/backend restarted
+  1 out of 3 new replicas have been updated...
+Waiting for deployment spec update to be observed...
+  1 out of 7 new replicas have been updated...
+  2 out of 7 new replicas have been updated...
+  3 out of 7 new replicas have been updated...
+  4 out of 7 new replicas have been updated...
+  5 out of 7 new replicas have been updated...
+  6 out of 7 new replicas have been updated...
+  1 old replicas are pending termination...
+deployment "backend" successfully rolled out
+== Rollout finished: 17:47:59Z
+NAME                       READY   STATUS        RESTARTS   AGE
+backend-59dc4c7dfb-bhmhr   1/1     Terminating   0          168m
+backend-59dc4c7dfb-s4t28   1/1     Terminating   0          72s
+backend-7f68b8b74b-2g8hm   1/1     Running       0          5s
+backend-7f68b8b74b-2lrzl   1/1     Running       0          9s
+backend-7f68b8b74b-7trdf   1/1     Running       0          22s
+backend-7f68b8b74b-j9tbl   1/1     Running       0          27s
+backend-7f68b8b74b-lpxf9   1/1     Running       0          31s
+backend-7f68b8b74b-rgphb   1/1     Running       0          13s
+backend-7f68b8b74b-sgcrm   1/1     Running       0          18s
+3         deploy v2 demo
+4         deploy v2 demo
+5         deploy v2 demo
+
+
+== k6 result (pod phase: Succeeded)
+              * reads: 40.00 iterations/s for 2m0s (maxVUs: 40-100, exec: reads, gracefulStop: 30s)
+              * writes: 0.25 iterations/s for 2m0s (maxVUs: 5-10, exec: writes, gracefulStop: 30s)
+    ✓ 'rate==1' rate=100.00%
+    http_req_failed
+    ✓ 'rate==0' rate=0.00%
+    checks_total.......: 9633    80.268904/s
+    checks_succeeded...: 100.00% 9633 out of 9633
+    checks_failed......: 0.00%   0 out of 9633
+    ✓ stats 200
+    ✓ ready 200
+    ✓ complaint created
+    http_req_duration..............: avg=5.71ms  min=3.08ms med=5.19ms  max=160.5ms  p(90)=6.71ms  p(95)=7.37ms 
+    http_req_failed................: 0.00%  0 out of 9633
+    http_reqs......................: 9633   80.268904/s
+    iterations.....................: 4832   40.263609/s
+reads  ✓ [ 100% ] 000/040 VUs  2m0s  40.00 iters/s
+writes ✓ [ 100% ] 00/05 VUs    2m0s  0.25 iters/s
+(k6 progress lines omitted; final: 4832 iterations, 9633 requests, 0 failed)
