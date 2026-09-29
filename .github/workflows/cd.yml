@@ -161,6 +161,9 @@ jobs:
       - name: Apply manifests
         run: kubectl apply -k k8s/overlays/prod
 
+      - name: Wait for database migration
+        run: kubectl wait --for=condition=complete job/migrate -n civicpulse --timeout=180s
+
       - name: Wait for rollouts
         run: |
           kubectl rollout status deployment/backend -n civicpulse --timeout=120s
@@ -173,6 +176,7 @@ jobs:
           kubectl describe pods -n civicpulse
           kubectl get events -n civicpulse --sort-by='.lastTimestamp'
           kubectl logs -n civicpulse -l app.kubernetes.io/name=backend --tail=100 --all-containers || true
+          kubectl logs -n civicpulse job/migrate --tail=100 || true
 
       - name: Smoke test via port-forward
         run: |
@@ -180,6 +184,7 @@ jobs:
           sleep 5
           curl -sf http://localhost:8000/health
           curl -sf http://localhost:8000/ready
+          curl -sf http://localhost:8000/api/stats
 
       - name: Print HPA status
         run: kubectl get hpa -n civicpulse
