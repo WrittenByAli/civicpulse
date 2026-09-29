@@ -137,6 +137,11 @@ jobs:
             backend=${{ env.IMAGE_BASE }}/backend:${{ github.sha }} \
             frontend=${{ env.IMAGE_BASE }}/frontend:${{ github.sha }}
 
+      - name: Install VPA CRDs
+        run: |
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/autoscaler/vpa-release-1.2/vertical-pod-autoscaler/deploy/vpa-v1-crd-gen.yaml \
+            || kubectl apply -f https://raw.githubusercontent.com/kubernetes/autoscaler/master/vertical-pod-autoscaler/deploy/vpa-v1-crd-gen.yaml
+
       - name: Apply manifests
         run: kubectl apply -k k8s/overlays/prod
 
