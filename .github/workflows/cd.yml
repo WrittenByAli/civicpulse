@@ -148,8 +148,8 @@ jobs:
         run: |
           cd k8s/overlays/prod
           kustomize edit set image \
-            backend=${{ env.IMAGE_BASE }}/backend:${{ github.sha }} \
-            frontend=${{ env.IMAGE_BASE }}/frontend:${{ github.sha }}
+            civicpulse-backend=${{ env.IMAGE_BASE }}/backend:${{ github.sha }} \
+            civicpulse-frontend=${{ env.IMAGE_BASE }}/frontend:${{ github.sha }}
 
       - name: Install VPA CRDs
         run: |
@@ -170,6 +170,7 @@ jobs:
           kubectl get pods -n civicpulse -o wide
           kubectl describe pods -n civicpulse
           kubectl get events -n civicpulse --sort-by='.lastTimestamp'
+          kubectl logs -n civicpulse -l app.kubernetes.io/name=backend --tail=100 --all-containers || true
 
       - name: Smoke test via port-forward
         run: |
