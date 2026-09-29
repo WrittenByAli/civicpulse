@@ -116,6 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: read
     env:
       REPO: ${{ github.repository }}
     steps:
@@ -126,6 +127,19 @@ jobs:
 
       - name: Create kind cluster
         uses: helm/kind-action@v1
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull images and load into kind
+        run: |
+          docker pull ${{ env.IMAGE_BASE }}/backend:${{ github.sha }}
+          docker pull ${{ env.IMAGE_BASE }}/frontend:${{ github.sha }}
+          kind load docker-image ${{ env.IMAGE_BASE }}/backend:${{ github.sha }} --name chart-testing
+          kind load docker-image ${{ env.IMAGE_BASE }}/frontend:${{ github.sha }} --name chart-testing
 
       - name: Install kustomize
         uses: imranismail/setup-kustomize@v2
@@ -149,6 +163,13 @@ jobs:
         run: |
           kubectl rollout status deployment/backend -n civicpulse --timeout=120s
           kubectl rollout status deployment/frontend -n civicpulse --timeout=120s
+
+      - name: Debug pod status
+        if: failure()
+        run: |
+          kubectl get pods -n civicpulse -o wide
+          kubectl describe pods -n civicpulse
+          kubectl get events -n civicpulse --sort-by='.lastTimestamp'
 
       - name: Smoke test via port-forward
         run: |
