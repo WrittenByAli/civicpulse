@@ -23,6 +23,7 @@ resources:
   - redis-pvc.yaml
   - redis-deployment.yaml
   - redis-service.yaml
+  - migrate-job.yaml
   - backend-deployment.yaml
   - backend-service.yaml
   - backend-hpa.yaml

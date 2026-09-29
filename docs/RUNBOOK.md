@@ -18,12 +18,18 @@ docker compose exec backend python scripts/seed.py
 export SHA=$(git rev-parse HEAD)
 cd k8s/overlays/prod
 kustomize edit set image \
-  backend=ghcr.io/writtenbyali/civicpulse/backend:$SHA \
-  frontend=ghcr.io/writtenbyali/civicpulse/frontend:$SHA
+  civicpulse-backend=ghcr.io/writtenbyali/civicpulse/backend:$SHA \
+  civicpulse-frontend=ghcr.io/writtenbyali/civicpulse/frontend:$SHA
+# A finished migrate Job is kept for 5 minutes and its spec cannot change,
+# so remove it first if you are redeploying a new SHA within that window
+kubectl delete job migrate -n civicpulse --ignore-not-found
 kubectl apply -k .
+kubectl wait --for=condition=complete job/migrate -n civicpulse --timeout=180s
 kubectl rollout status deployment/backend -n civicpulse
 kubectl rollout status deployment/frontend -n civicpulse
 ```
+
+Database migrations run as the `migrate` Job (`alembic upgrade head`, safe to run repeatedly). If it fails, read its logs with `kubectl logs job/migrate -n civicpulse`.
 
 ## Rollback
 
